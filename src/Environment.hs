@@ -5,10 +5,11 @@ import           Control.Monad.State
 import qualified Data.Map            as M
 
 
+data ClassExt = BaseClass | ExtClass Ident
 data ClassMember = Var Type | Method Type [Type]
 
 type Store = M.Map Ident Type
-type ClassStore = M.Map Ident (M.Map Ident ClassMember)
+type ClassStore = M.Map Ident (ClassExt, M.Map Ident ClassMember)
 type ErrorMsg = String
 
 type Environment = ([Store], [ClassStore], ErrorMsg)
