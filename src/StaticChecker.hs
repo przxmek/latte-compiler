@@ -124,8 +124,33 @@ checkExpr x = case x of
   EString string         -> return $ BaseTypeDef TVoid -- @TODO
   Neg expr               -> return $ BaseTypeDef TVoid -- @TODO
   Not expr               -> return $ BaseTypeDef TVoid -- @TODO
-  EMul expr1 mulop expr2 -> return $ BaseTypeDef TVoid -- @TODO
-  EAdd expr1 addop expr2 -> return $ BaseTypeDef TVoid -- @TODO
-  ERel expr1 relop expr2 -> return $ BaseTypeDef TVoid -- @TODO
-  EAnd expr1 expr2       -> return $ BaseTypeDef TVoid -- @TODO
-  EOr expr1 expr2        -> return $ BaseTypeDef TVoid -- @TODO
+  EMul expr1 mulop expr2 -> checkBinaryOp expr1 expr2 (MulOp mulop)
+  EAdd expr1 addop expr2 -> checkBinaryOp expr1 expr2 (AddOp addop)
+  ERel expr1 relop expr2 -> checkBinaryOp expr1 expr2 (RelOp relop)
+  EAnd expr1 expr2       -> checkBinaryOp expr1 expr2 LogOp
+  EOr expr1 expr2        -> checkBinaryOp expr1 expr2 LogOp
+
+
+checkBinaryOp :: Expr -> Expr -> BinOp -> EnvState Type
+checkBinaryOp expr1 expr2 binOp = do
+  lhs <- checkExpr expr1
+  rhs <- checkExpr expr2
+  let allowed = allowedOpTypes binOp
+  if (notVoid lhs && notVoid rhs && lhs /= rhs)
+      || notElem lhs allowed || notElem rhs allowed
+    then do
+      appendError
+      return $ BaseTypeDef TVoid
+    else
+      return lhs
+
+allowedOpTypes :: BinOp -> [Type]
+allowedOpTypes binop = BaseTypeDef TVoid : case binop of
+  AddOp OpPlus -> [BaseTypeDef TInt, BaseTypeDef TStr]
+  AddOp _ -> [BaseTypeDef TInt]
+  MulOp _ -> [BaseTypeDef TInt]
+  RelOp _ -> [BaseTypeDef TInt]
+  LogOp   -> [BaseTypeDef TBool]
+
+notVoid :: Type -> Bool
+notVoid t = t /= BaseTypeDef TVoid

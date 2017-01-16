@@ -85,6 +85,10 @@ data Expr
     | EOr Expr Expr
   deriving (Eq, Ord, Show, Read)
 
+data Op = UnaryOp UnaryOp | BinOp BinOp
+data UnaryOp = NegOp | NotOp
+data BinOp = AddOp AddOp | MulOp MulOp | RelOp RelOp | LogOp
+
 data AddOp = OpPlus | OpMinus
   deriving (Eq, Ord, Show, Read)
 
@@ -93,4 +97,3 @@ data MulOp = OpTimes | OpDiv | OpMod
 
 data RelOp = OpLTH | OpLE | OpGTH | OpGE | OpEQU | OpNE
   deriving (Eq, Ord, Show, Read)
-
