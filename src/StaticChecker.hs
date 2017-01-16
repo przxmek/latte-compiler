@@ -122,8 +122,8 @@ checkExpr x = case x of
   EArrSub ident exprs    -> return $ BaseTypeDef TVoid -- @TODO
   EMember expr ident     -> return $ BaseTypeDef TVoid -- @TODO
   EString string         -> return $ BaseTypeDef TVoid -- @TODO
-  Neg expr               -> return $ BaseTypeDef TVoid -- @TODO
-  Not expr               -> return $ BaseTypeDef TVoid -- @TODO
+  Neg expr               -> checkUnaryOp expr NegOp
+  Not expr               -> checkUnaryOp expr NotOp
   EMul expr1 mulop expr2 -> checkBinaryOp expr1 expr2 (MulOp mulop)
   EAdd expr1 addop expr2 -> checkBinaryOp expr1 expr2 (AddOp addop)
   ERel expr1 relop expr2 -> checkBinaryOp expr1 expr2 (RelOp relop)
@@ -131,11 +131,21 @@ checkExpr x = case x of
   EOr expr1 expr2        -> checkBinaryOp expr1 expr2 LogOp
 
 
+checkUnaryOp :: Expr -> UnaryOp -> EnvState Type
+checkUnaryOp expr unaryOp = do
+  exprType <- checkExpr expr
+  if notElem exprType $ allowedOpTypes $ UnaryOp unOp
+    then do
+      appendError
+      return $ BaseTypeDef TVoid
+    else return exprType
+
+
 checkBinaryOp :: Expr -> Expr -> BinOp -> EnvState Type
 checkBinaryOp expr1 expr2 binOp = do
   lhs <- checkExpr expr1
   rhs <- checkExpr expr2
-  let allowed = allowedOpTypes binOp
+  let allowed = allowedOpTypes $ BinOp binOp
   if (notVoid lhs && notVoid rhs && lhs /= rhs)
       || notElem lhs allowed || notElem rhs allowed
     then do
@@ -143,14 +153,17 @@ checkBinaryOp expr1 expr2 binOp = do
       return $ BaseTypeDef TVoid
     else
       return lhs
+  where
+    notVoid t = t /= BaseTypeDef TVoid
 
-allowedOpTypes :: BinOp -> [Type]
-allowedOpTypes binop = BaseTypeDef TVoid : case binop of
+
+allowedOpTypes :: Op -> [Type]
+allowedOpTypes (UnaryOp unOp) = case unOp of
+  NegOp -> [BaseTypeDef TInt]
+  NotOp -> [BaseTypeDef TBool]
+allowedOpTypes (BinOp binOp) = BaseTypeDef TVoid : case binOp of
   AddOp OpPlus -> [BaseTypeDef TInt, BaseTypeDef TStr]
-  AddOp _ -> [BaseTypeDef TInt]
-  MulOp _ -> [BaseTypeDef TInt]
-  RelOp _ -> [BaseTypeDef TInt]
-  LogOp   -> [BaseTypeDef TBool]
-
-notVoid :: Type -> Bool
-notVoid t = t /= BaseTypeDef TVoid
+  AddOp _      -> [BaseTypeDef TInt]
+  MulOp _      -> [BaseTypeDef TInt]
+  RelOp _      -> [BaseTypeDef TInt]
+  LogOp        -> [BaseTypeDef TBool]
