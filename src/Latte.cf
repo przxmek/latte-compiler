@@ -3,45 +3,68 @@
 entrypoints Program ;
 
 Program.   Program ::= [TopDef] ;
-FnDef.	   TopDef ::= Type Ident "(" [Arg] ")" Block ;
 
+TopDefFunc.   TopDef  ::= FuncDef ;
+TopDefClass.  TopDef  ::= ClassHead "{" [MemberDecl] "}" ;  -- extension (objects)
 separator nonempty TopDef "" ;
 
-Arg. 	     Arg ::= Type Ident ;
-separator  Arg "," ;
+FuncDef.   FuncDef ::= Type Ident "(" [FArg] ")" Block ;
+
+FArg.       FArg ::= Type Ident ;
+separator   FArg "," ;
+
+
+-- classes - extension (objects) ---------------------------
+
+ClassHeadDef.    ClassHead ::= "class" Ident ;
+ClassHeadExtDef. ClassHead ::= "class" Ident "extends" ClassType ;
+
+DeclField.  MemberDecl ::= Type [Ident] ";" ;
+FuncField.  MemberDecl ::= FuncDef ;
+separator MemberDecl "" ;
+separator nonempty Ident "," ;
+
 
 -- statements ----------------------------------------------
 
 Block.     Block ::= "{" [Stmt] "}" ;
 
 separator  Stmt "" ;
-Empty.     Stmt ::= ";" ;
-BStmt.     Stmt ::= Block ;
-Decl.      Stmt ::= Type [Item] ";" ;
+SEmpty.    Stmt ::= ";" ;
+SBlStmt.   Stmt ::= Block ;
+SDecl.     Stmt ::= Type [Item] ";" ;
 
 NoInit.    Item ::= Ident ;
 Init.      Item ::= Ident "=" Expr ;
 separator nonempty Item "," ;
 
-Ass.       Stmt ::= Ident "=" Expr  ";" ;
-Incr.      Stmt ::= Ident "++"  ";" ;
-Decr.      Stmt ::= Ident "--"  ";" ;
-Ret.       Stmt ::= "return" Expr ";" ;
-VRet.      Stmt ::= "return" ";" ;
-Cond.      Stmt ::= "if" "(" Expr ")" Stmt  ;
-CondElse.  Stmt ::= "if" "(" Expr ")" Stmt "else" Stmt  ;
-While.     Stmt ::= "while" "(" Expr ")" Stmt ;
-SExp.      Stmt ::= Expr  ";" ;
+SAss.       Stmt ::= Expr "=" Expr  ";" ; -- extension
+SIncr.      Stmt ::= Expr "++"  ";" ; -- extension
+SDecr.      Stmt ::= Expr "--"  ";" ; -- extension
+SRet.       Stmt ::= "return" Expr ";" ;
+SVRet.      Stmt ::= "return" ";" ;
+SCond.      Stmt ::= "if" "(" Expr ")" Stmt  ;
+SCondElse.  Stmt ::= "if" "(" Expr ")" Stmt "else" Stmt  ;
+SWhile.     Stmt ::= "while" "(" Expr ")" Stmt ;
+SFor.       Stmt ::= "for" "(" Type Ident ":" Expr ")" Stmt ; -- extension (for loop)
+SExp.       Stmt ::= Expr  ";" ;
 
 -- Types ---------------------------------------------------
 
-Int.       Type ::= "int" ;
-Str.       Type ::= "string" ;
-Bool.      Type ::= "boolean" ;
-Void.      Type ::= "void" ;
-internal   Fun. Type ::= Type "(" [Type] ")" ;
-
+BaseTypeDef.   Type ::= BaseType ;
+ArrayTypeDef.  Type ::= ArrayType ;
+ClassTypeDef.  Type ::= ClassType ;
 separator  Type "," ;
+
+TInt.       BaseType ::= "int" ;
+TStr.       BaseType ::= "string" ;
+TBool.      BaseType ::= "boolean" ;
+TVoid.      BaseType ::= "void" ;
+
+TArray.     ArrayType ::= Type "[]" ; -- extension (arrays)
+
+TClass.     ClassType ::= Ident ; -- extension (objects)
+
 
 -- Expressions ---------------------------------------------
 
@@ -50,6 +73,8 @@ ELitInt.   Expr6 ::= Integer ;
 ELitTrue.  Expr6 ::= "true" ;
 ELitFalse. Expr6 ::= "false" ;
 EApp.      Expr6 ::= Ident "(" [Expr] ")" ;
+EArrSub.   Expr6 ::= Ident "[" [Expr] "]" ;  -- extension (arrays)
+EMember.   Expr6 ::= Expr6 "." Ident ;       -- extension (objects)
 EString.   Expr6 ::= String ;
 Neg.       Expr5 ::= "-" Expr6 ;
 Not.       Expr5 ::= "!" Expr6 ;
@@ -62,19 +87,21 @@ EOr.       Expr ::= Expr1 "||" Expr ;
 coercions  Expr 6 ;
 separator  Expr "," ;
 
+
 -- operators -----------------------------------------------
 
-Plus.      AddOp ::= "+" ;
-Minus.     AddOp ::= "-" ;
-Times.     MulOp ::= "*" ;
-Div.       MulOp ::= "/" ;
-Mod.       MulOp ::= "%" ;
-LTH.       RelOp ::= "<" ;
-LE.        RelOp ::= "<=" ;
-GTH.       RelOp ::= ">" ;
-GE.        RelOp ::= ">=" ;
-EQU.       RelOp ::= "==" ;
-NE.        RelOp ::= "!=" ;
+OpPlus.      AddOp ::= "+" ;
+OpMinus.     AddOp ::= "-" ;
+OpTimes.     MulOp ::= "*" ;
+OpDiv.       MulOp ::= "/" ;
+OpMod.       MulOp ::= "%" ;
+OpLTH.       RelOp ::= "<" ;
+OpLE.        RelOp ::= "<=" ;
+OpGTH.       RelOp ::= ">" ;
+OpGE.        RelOp ::= ">=" ;
+OpEQU.       RelOp ::= "==" ;
+OpNE.        RelOp ::= "!=" ;
+
 
 -- comments ------------------------------------------------
 
