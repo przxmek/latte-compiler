@@ -136,7 +136,7 @@ checkExpr x = case x of
 checkUnaryOp :: Expr -> UnaryOp -> EnvState Type
 checkUnaryOp expr unaryOp = do
   exprType <- checkExpr expr
-  if notElem exprType $ allowedOpTypes $ UnaryOp unaryOp
+  if exprType `notElem` (allowedOpTypes $ UnaryOp unaryOp)
     then do
       appendError
       return $ BaseTypeDef TVoid
@@ -149,7 +149,7 @@ checkBinaryOp expr1 expr2 binOp = do
   rhs <- checkExpr expr2
   let allowed = allowedOpTypes $ BinOp binOp
   if (notVoid lhs && notVoid rhs && lhs /= rhs)
-      || notElem lhs allowed || notElem rhs allowed
+      || lhs `notElem` allowed || rhs `notElem` allowed
     then do
       appendError
       return $ BaseTypeDef TVoid
