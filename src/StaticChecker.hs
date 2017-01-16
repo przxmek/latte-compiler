@@ -64,8 +64,10 @@ checkStmt x = case x of
     exitScope
   SDecl type_ items -> return () -- @TODO
   SAss expr1 expr2 -> return () -- @TODO
-  SIncr expr -> return () -- @TODO
-  SDecr expr -> return () -- @TODO
+  SIncr expr -> do
+    _ <- checkExpr $ EAdd expr OpPlus (ELitInt 0)
+    return ()
+  SDecr expr -> checkStmt (SIncr expr)
   SRet expr -> return () -- @TODO
   SVRet -> return () -- @TODO
   SCond expr stmt -> checkStmt $ SCondElse expr stmt SEmpty
@@ -77,7 +79,7 @@ checkStmt x = case x of
   SWhile expr stmt -> checkStmt $ SCond expr stmt
   SFor type_ ident expr stmt -> do
     arrType <- checkExpr $ EVar ident
-    checkExpr expr -- @TODO check elem arr type
+    _ <- checkExpr expr -- @TODO check elem arr type
     checkStmt stmt
   SExp expr -> void $ checkExpr expr
 
@@ -134,7 +136,7 @@ checkExpr x = case x of
 checkUnaryOp :: Expr -> UnaryOp -> EnvState Type
 checkUnaryOp expr unaryOp = do
   exprType <- checkExpr expr
-  if notElem exprType $ allowedOpTypes $ UnaryOp unOp
+  if notElem exprType $ allowedOpTypes $ UnaryOp unaryOp
     then do
       appendError
       return $ BaseTypeDef TVoid
