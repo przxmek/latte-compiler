@@ -121,7 +121,7 @@ checkExpr x = case x of
   EApp ident exprs       -> return $ BaseTypeDef TVoid -- @TODO
   EArrSub ident exprs    -> return $ BaseTypeDef TVoid -- @TODO
   EMember expr ident     -> return $ BaseTypeDef TVoid -- @TODO
-  EString string         -> return $ BaseTypeDef TVoid -- @TODO
+  EString string         -> return $ BaseTypeDef TStr
   Neg expr               -> checkUnaryOp expr NegOp
   Not expr               -> checkUnaryOp expr NotOp
   EMul expr1 mulop expr2 -> checkBinaryOp expr1 expr2 (MulOp mulop)
