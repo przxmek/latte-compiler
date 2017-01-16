@@ -78,6 +78,8 @@ transExpr x = case x of
   ELitInt integer -> failure x
   ELitTrue -> failure x
   ELitFalse -> failure x
+  ENewClass classtype -> failure x
+  ENewArray type_ expr -> failure x
   EApp ident exprs -> failure x
   EArrSub ident exprs -> failure x
   EMember expr ident -> failure x

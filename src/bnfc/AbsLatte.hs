@@ -70,6 +70,8 @@ data Expr
     | ELitInt Integer
     | ELitTrue
     | ELitFalse
+    | ENewClass ClassType
+    | ENewArray Type Expr
     | EApp Ident [Expr]
     | EArrSub Ident [Expr]
     | EMember Expr Ident

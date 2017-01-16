@@ -167,10 +167,12 @@ instance Print ClassType where
 
 instance Print Expr where
   prt i e = case e of
-    EVar id -> prPrec i 6 (concatD [prt 0 id])
-    ELitInt n -> prPrec i 6 (concatD [prt 0 n])
-    ELitTrue -> prPrec i 6 (concatD [doc (showString "true")])
-    ELitFalse -> prPrec i 6 (concatD [doc (showString "false")])
+    EVar id -> prPrec i 8 (concatD [prt 0 id])
+    ELitInt n -> prPrec i 8 (concatD [prt 0 n])
+    ELitTrue -> prPrec i 8 (concatD [doc (showString "true")])
+    ELitFalse -> prPrec i 8 (concatD [doc (showString "false")])
+    ENewClass classtype -> prPrec i 7 (concatD [doc (showString "new"), prt 0 classtype])
+    ENewArray type_ expr -> prPrec i 7 (concatD [doc (showString "new"), prt 0 type_, doc (showString "["), prt 0 expr, doc (showString "]")])
     EApp id exprs -> prPrec i 6 (concatD [prt 0 id, doc (showString "("), prt 0 exprs, doc (showString ")")])
     EArrSub id exprs -> prPrec i 6 (concatD [prt 0 id, doc (showString "["), prt 0 exprs, doc (showString "]")])
     EMember expr id -> prPrec i 6 (concatD [prt 6 expr, doc (showString "."), prt 0 id])

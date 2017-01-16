@@ -34,8 +34,8 @@ The set of reserved words is the set of terminals appearing in the grammar. Thos
 The reserved words used in Latte are the following:
   | ``boolean`` | ``class`` | ``else`` | ``extends``
   | ``false`` | ``for`` | ``if`` | ``int``
-  | ``return`` | ``string`` | ``true`` | ``void``
-  | ``while`` |  |  | 
+  | ``new`` | ``return`` | ``string`` | ``true``
+  | ``void`` | ``while`` |  | 
 
 The symbols used in Latte are the following:
   | { | } | ( | )
@@ -105,15 +105,19 @@ All other symbols are terminals.
   |  |  **|**  | ``void`` 
   | //ArrayType// | -> | //Type// ``[]`` 
   | //ClassType// | -> | //Ident// 
-  | //Expr6// | -> | //Ident// 
+  | //Expr8// | -> | //Ident// 
   |  |  **|**  | //Integer// 
   |  |  **|**  | ``true`` 
   |  |  **|**  | ``false`` 
-  |  |  **|**  | //Ident// ``(`` //[Expr]// ``)`` 
+  |  |  **|**  | ``(`` //Expr// ``)`` 
+  | //Expr7// | -> | ``new`` //ClassType// 
+  |  |  **|**  | ``new`` //Type// ``[`` //Expr// ``]`` 
+  |  |  **|**  | //Expr8// 
+  | //Expr6// | -> | //Ident// ``(`` //[Expr]// ``)`` 
   |  |  **|**  | //Ident// ``[`` //[Expr]// ``]`` 
   |  |  **|**  | //Expr6// ``.`` //Ident// 
   |  |  **|**  | //String// 
-  |  |  **|**  | ``(`` //Expr// ``)`` 
+  |  |  **|**  | //Expr7// 
   | //Expr5// | -> | ``-`` //Expr6// 
   |  |  **|**  | ``!`` //Expr6// 
   |  |  **|**  | //Expr6// 

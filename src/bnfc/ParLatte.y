@@ -46,14 +46,15 @@ import ErrM
   'for' { PT _ (TS _ 31) }
   'if' { PT _ (TS _ 32) }
   'int' { PT _ (TS _ 33) }
-  'return' { PT _ (TS _ 34) }
-  'string' { PT _ (TS _ 35) }
-  'true' { PT _ (TS _ 36) }
-  'void' { PT _ (TS _ 37) }
-  'while' { PT _ (TS _ 38) }
-  '{' { PT _ (TS _ 39) }
-  '||' { PT _ (TS _ 40) }
-  '}' { PT _ (TS _ 41) }
+  'new' { PT _ (TS _ 34) }
+  'return' { PT _ (TS _ 35) }
+  'string' { PT _ (TS _ 36) }
+  'true' { PT _ (TS _ 37) }
+  'void' { PT _ (TS _ 38) }
+  'while' { PT _ (TS _ 39) }
+  '{' { PT _ (TS _ 40) }
+  '||' { PT _ (TS _ 41) }
+  '}' { PT _ (TS _ 42) }
 
 L_ident  { PT _ (TV $$) }
 L_integ  { PT _ (TI $$) }
@@ -132,16 +133,22 @@ ArrayType :: { ArrayType }
 ArrayType : Type '[]' { AbsLatte.TArray $1 }
 ClassType :: { ClassType }
 ClassType : Ident { AbsLatte.TClass $1 }
-Expr6 :: { Expr }
-Expr6 : Ident { AbsLatte.EVar $1 }
+Expr8 :: { Expr }
+Expr8 : Ident { AbsLatte.EVar $1 }
       | Integer { AbsLatte.ELitInt $1 }
       | 'true' { AbsLatte.ELitTrue }
       | 'false' { AbsLatte.ELitFalse }
-      | Ident '(' ListExpr ')' { AbsLatte.EApp $1 $3 }
+      | '(' Expr ')' { $2 }
+Expr7 :: { Expr }
+Expr7 : 'new' ClassType { AbsLatte.ENewClass $2 }
+      | 'new' Type '[' Expr ']' { AbsLatte.ENewArray $2 $4 }
+      | Expr8 { $1 }
+Expr6 :: { Expr }
+Expr6 : Ident '(' ListExpr ')' { AbsLatte.EApp $1 $3 }
       | Ident '[' ListExpr ']' { AbsLatte.EArrSub $1 $3 }
       | Expr6 '.' Ident { AbsLatte.EMember $1 $3 }
       | String { AbsLatte.EString $1 }
-      | '(' Expr ')' { $2 }
+      | Expr7 { $1 }
 Expr5 :: { Expr }
 Expr5 : '-' Expr6 { AbsLatte.Neg $2 }
       | '!' Expr6 { AbsLatte.Not $2 }
