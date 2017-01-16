@@ -64,12 +64,12 @@ data Expr
     | ELitInt Integer
     | ELitTrue
     | ELitFalse
+    | EString String
     | ENewClass ClassType
     | ENewArray Type Expr
-    | EApp Ident [Expr]
-    | EArrSub Ident [Expr]
+    | EApp Expr [Expr]
+    | EArrSub Expr Expr
     | EMember Expr Ident
-    | EString String
     | Neg Expr
     | Not Expr
     | EMul Expr MulOp Expr

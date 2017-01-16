@@ -167,16 +167,16 @@ instance Print ClassType where
 
 instance Print Expr where
   prt i e = case e of
-    EVar id -> prPrec i 8 (concatD [prt 0 id])
+    EVar id -> prPrec i 9 (concatD [prt 0 id])
     ELitInt n -> prPrec i 8 (concatD [prt 0 n])
     ELitTrue -> prPrec i 8 (concatD [doc (showString "true")])
     ELitFalse -> prPrec i 8 (concatD [doc (showString "false")])
+    EString str -> prPrec i 8 (concatD [prt 0 str])
     ENewClass classtype -> prPrec i 7 (concatD [doc (showString "new"), prt 0 classtype])
     ENewArray type_ expr -> prPrec i 7 (concatD [doc (showString "new"), prt 0 type_, doc (showString "["), prt 0 expr, doc (showString "]")])
-    EApp id exprs -> prPrec i 6 (concatD [prt 0 id, doc (showString "("), prt 0 exprs, doc (showString ")")])
-    EArrSub id exprs -> prPrec i 6 (concatD [prt 0 id, doc (showString "["), prt 0 exprs, doc (showString "]")])
+    EApp expr exprs -> prPrec i 6 (concatD [prt 6 expr, doc (showString "("), prt 0 exprs, doc (showString ")")])
+    EArrSub expr1 expr2 -> prPrec i 6 (concatD [prt 6 expr1, doc (showString "["), prt 0 expr2, doc (showString "]")])
     EMember expr id -> prPrec i 6 (concatD [prt 6 expr, doc (showString "."), prt 0 id])
-    EString str -> prPrec i 6 (concatD [prt 0 str])
     Neg expr -> prPrec i 5 (concatD [doc (showString "-"), prt 6 expr])
     Not expr -> prPrec i 5 (concatD [doc (showString "!"), prt 6 expr])
     EMul expr1 mulop expr2 -> prPrec i 4 (concatD [prt 4 expr1, prt 0 mulop, prt 5 expr2])

@@ -105,18 +105,19 @@ All other symbols are terminals.
   |  |  **|**  | ``void`` 
   | //ArrayType// | -> | //Type// ``[]`` 
   | //ClassType// | -> | //Ident// 
-  | //Expr8// | -> | //Ident// 
-  |  |  **|**  | //Integer// 
+  | //Expr9// | -> | //Ident// 
+  |  |  **|**  | ``(`` //Expr// ``)`` 
+  | //Expr8// | -> | //Integer// 
   |  |  **|**  | ``true`` 
   |  |  **|**  | ``false`` 
-  |  |  **|**  | ``(`` //Expr// ``)`` 
+  |  |  **|**  | //String// 
+  |  |  **|**  | //Expr9// 
   | //Expr7// | -> | ``new`` //ClassType// 
   |  |  **|**  | ``new`` //Type// ``[`` //Expr// ``]`` 
   |  |  **|**  | //Expr8// 
-  | //Expr6// | -> | //Ident// ``(`` //[Expr]// ``)`` 
-  |  |  **|**  | //Ident// ``[`` //[Expr]// ``]`` 
+  | //Expr6// | -> | //Expr6// ``(`` //[Expr]// ``)`` 
+  |  |  **|**  | //Expr6// ``[`` //Expr// ``]`` 
   |  |  **|**  | //Expr6// ``.`` //Ident// 
-  |  |  **|**  | //String// 
   |  |  **|**  | //Expr7// 
   | //Expr5// | -> | ``-`` //Expr6// 
   |  |  **|**  | ``!`` //Expr6// 

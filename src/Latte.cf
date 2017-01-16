@@ -69,25 +69,25 @@ TClass.     ClassType ::= Ident ; -- extension (objects)
 -- Expressions ---------------------------------------------
 
 
-EVar.      Expr8 ::= Ident ;
+EVar.      Expr9 ::= Ident ;
 ELitInt.   Expr8 ::= Integer ;
 ELitTrue.  Expr8 ::= "true" ;
 ELitFalse. Expr8 ::= "false" ;
+EString.   Expr8 ::= String ;
 ENewClass. Expr7 ::= "new" ClassType ;         -- extension (objects)
 ENewArray. Expr7 ::= "new" Type "[" Expr "]" ; -- extension (arrays)
-EApp.      Expr6 ::= Ident "(" [Expr] ")" ;
-EArrSub.   Expr6 ::= Ident "[" [Expr] "]" ;    -- extension (arrays)
+EApp.      Expr6 ::= Expr6 "(" [Expr] ")" ;
+EArrSub.   Expr6 ::= Expr6 "[" Expr "]" ;    -- extension (arrays)
 EMember.   Expr6 ::= Expr6 "." Ident ;         -- extension (objects)
-EString.   Expr6 ::= String ;
 Neg.       Expr5 ::= "-" Expr6 ;
 Not.       Expr5 ::= "!" Expr6 ;
 EMul.      Expr4 ::= Expr4 MulOp Expr5 ;
 EAdd.      Expr3 ::= Expr3 AddOp Expr4 ;
 ERel.      Expr2 ::= Expr2 RelOp Expr3 ;
 EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
-EOr.       Expr ::= Expr1 "||" Expr ;
+EOr.       Expr  ::= Expr1 "||" Expr ;
 
-coercions  Expr 8 ;
+coercions  Expr 9 ;
 separator  Expr "," ;
 
 

@@ -133,21 +133,22 @@ ArrayType :: { ArrayType }
 ArrayType : Type '[]' { AbsLatte.TArray $1 }
 ClassType :: { ClassType }
 ClassType : Ident { AbsLatte.TClass $1 }
+Expr9 :: { Expr }
+Expr9 : Ident { AbsLatte.EVar $1 } | '(' Expr ')' { $2 }
 Expr8 :: { Expr }
-Expr8 : Ident { AbsLatte.EVar $1 }
-      | Integer { AbsLatte.ELitInt $1 }
+Expr8 : Integer { AbsLatte.ELitInt $1 }
       | 'true' { AbsLatte.ELitTrue }
       | 'false' { AbsLatte.ELitFalse }
-      | '(' Expr ')' { $2 }
+      | String { AbsLatte.EString $1 }
+      | Expr9 { $1 }
 Expr7 :: { Expr }
 Expr7 : 'new' ClassType { AbsLatte.ENewClass $2 }
       | 'new' Type '[' Expr ']' { AbsLatte.ENewArray $2 $4 }
       | Expr8 { $1 }
 Expr6 :: { Expr }
-Expr6 : Ident '(' ListExpr ')' { AbsLatte.EApp $1 $3 }
-      | Ident '[' ListExpr ']' { AbsLatte.EArrSub $1 $3 }
+Expr6 : Expr6 '(' ListExpr ')' { AbsLatte.EApp $1 $3 }
+      | Expr6 '[' Expr ']' { AbsLatte.EArrSub $1 $3 }
       | Expr6 '.' Ident { AbsLatte.EMember $1 $3 }
-      | String { AbsLatte.EString $1 }
       | Expr7 { $1 }
 Expr5 :: { Expr }
 Expr5 : '-' Expr6 { AbsLatte.Neg $2 }
