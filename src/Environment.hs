@@ -101,6 +101,16 @@ getClassMembers classIdent = do
       return []
 
 
+getParentClass :: Ident -> EnvState (Maybe Ident)
+getParentClass ident = do
+  (_, c, _) <- get
+  case M.lookup ident c of
+    Nothing -> return Nothing
+    Just (classExt, _) -> case classExt of
+      BaseClass          -> return Nothing
+      ExtClass baseClass -> return $ Just baseClass
+
+
 
 
 --- Standard library functions -------------------------------------------------

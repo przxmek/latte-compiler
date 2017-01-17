@@ -102,7 +102,8 @@ checkStmt retType x = case x of
   SDecr expr -> checkStmt retType (SIncr expr)
   SRet expr -> do
     exprType <- checkExpr expr
-    when (retType /= exprType) $
+    typesCheck <- checkTypes retType exprType
+    unless typesCheck $
       appendError $ "Incorrect return value type. (expected "
         ++ show retType ++ " but got " ++ show exprType ++ ")."
   SVRet ->
@@ -141,7 +142,8 @@ checkStmtDecl type_ items = do
   where
     compareExprType expr = do
       exprType <- checkExpr expr
-      when (notVoid exprType && type_ /= exprType) $
+      typesCheck <- checkTypes type_ exprType
+      when (notVoid exprType && not typesCheck) $
         appendError $ "Expression type " ++ show exprType
           ++ " does not match the type " ++ show type_ ++ " of the variable."
 
@@ -151,7 +153,8 @@ checkStmtAssign expr1 expr2 =
   if isLvalue expr1 then do
     lhs <- checkExpr expr1
     rhs <- checkExpr expr2
-    when (notVoid lhs && notVoid rhs && lhs /= rhs) $
+    typesCheck <- checkTypes lhs rhs
+    when (notVoid lhs && notVoid rhs && not typesCheck) $
       appendError $ "Right side expression type " ++ show rhs
         ++ " does not match the assignment type " ++ show lhs ++ "."
   else appendError $ "Left side expression must be a lvalue, but got "
@@ -215,7 +218,8 @@ checkExprApplication expr exprs = do
   case funcType of
     FuncTypeDef (TFunc retType argsDefType) -> do
       argsActType <- checkExprs exprs
-      when (argsDefType /= argsActType) $
+      typesCheck <- checkTypesList argsDefType argsActType
+      unless typesCheck $
         appendError $ "Function argument type does not match (expected "
           ++ show argsDefType ++ " but got " ++ show argsActType ++ ")."
       return retType
@@ -228,6 +232,14 @@ checkExprApplication expr exprs = do
         exprType <- checkExpr expr'
         rest <- checkExprs exprs'
         return $ exprType : rest
+
+      checkTypesList [] [] = return True
+      checkTypesList []  _ = return False
+      checkTypesList _  [] = return False
+      checkTypesList (t1:l1) (t2:l2) = do
+        rest <- checkTypesList l1 l2
+        typesCheck <- checkTypes t1 t2
+        return $ typesCheck && rest
 
 
 checkExprMember :: Expr -> Ident -> EnvState Type
@@ -279,6 +291,25 @@ checkBinaryOp expr1 expr2 binOp = do
       return $ BaseTypeDef TVoid
     else
       return lhsType
+
+
+checkTypes :: Type -> Type -> EnvState Bool
+checkTypes t1 t2 =
+  if t1 == t2
+    then return True
+    else case (t1, t2) of
+      (ClassTypeDef (TClass c1), ClassTypeDef (TClass c2)) -> isSubclass c2 c1
+      _ -> return False
+    where
+      isSubclass class_ superClass = do
+        parent <- getParentClass class_
+        case parent of
+          Nothing -> return False
+          Just parentClass ->
+            if parentClass == superClass
+              then return True
+              else isSubclass parentClass superClass
+
 
 
 verifyArrayElem :: Type -> Type -> EnvState ()
