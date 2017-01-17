@@ -257,6 +257,13 @@ checkUnaryOp expr unaryOp = do
 
 
 checkBinaryOp :: Expr -> Expr -> BinOp -> EnvState Type
+checkBinaryOp expr1 expr2 (RelOp _) = do
+  lhs <- checkExpr expr1
+  rhs <- checkExpr expr2
+  when (notVoid lhs && notVoid rhs && lhs /= rhs) $
+    appendError $ "LHS type " ++ show lhs ++ " does not match RHS type "
+      ++ show rhs
+  return $ BaseTypeDef TBool
 checkBinaryOp expr1 expr2 binOp = do
   lhsType <- checkExpr expr1
   rhsType <- checkExpr expr2
@@ -269,7 +276,7 @@ checkBinaryOp expr1 expr2 binOp = do
         ++ show rhsType ++ "."
       return $ BaseTypeDef TVoid
     else
-      return lhsType -- @TODO Fix this. RelOp always return Bool type
+      return lhsType
 
 
 verifyArrayElem :: Type -> Type -> EnvState ()
