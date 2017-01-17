@@ -121,8 +121,10 @@ checkStmt retType x = case x of
   SFor type_ ident expr stmt -> do
     arrType <- checkExpr expr
     verifyArrayElem type_ arrType
+    newScope
     newVar type_ ident
     checkStmt retType stmt
+    exitScope
   SExp expr -> void $ checkExpr expr
 
 
