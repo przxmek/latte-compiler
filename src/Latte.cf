@@ -68,26 +68,27 @@ TClass.     ClassType ::= Ident ; -- extension (objects)
 -- Expressions ---------------------------------------------
 
 
-EVar.      Expr9 ::= Ident ;
-ELitInt.   Expr8 ::= Integer ;
-ELitTrue.  Expr8 ::= "true" ;
-ELitFalse. Expr8 ::= "false" ;
-EString.   Expr8 ::= String ;
-EApp.      Expr7 ::= Expr6 "(" [Expr] ")" ;
-EArrSub.   Expr7 ::= Expr6 "[" Expr "]" ; -- extension (arrays)
-EMember.   Expr7 ::= Expr6 "." Ident ;    -- extension (objects)
-Neg.       Expr5 ::= "-" Expr6 ;
-Not.       Expr5 ::= "!" Expr6 ;
-EMul.      Expr4 ::= Expr4 MulOp Expr5 ;
-EAdd.      Expr3 ::= Expr3 AddOp Expr4 ;
-ERel.      Expr2 ::= Expr2 RelOp Expr3 ;
-EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
-EOr.       Expr  ::= Expr1 "||" Expr ;
-ENewClass. Expr  ::= "new" ClassType ;         -- extension (objects)
-ENewArray. Expr  ::= "new" Type "[" Expr "]" ; -- extension (arrays)
+EVar.       Expr9 ::= Ident ;
+ELitInt.    Expr8 ::= Integer ;
+ELitTrue.   Expr8 ::= "true" ;
+ELitFalse.  Expr8 ::= "false" ;
+EString.    Expr8 ::= String ;
+EClassNull. Expr7 ::= "(" ClassType ")null" ; -- extension (objects)
+EApp.       Expr7 ::= Expr6 "(" [Expr] ")" ;
+EArrSub.    Expr7 ::= Expr6 "[" Expr "]" ;    -- extension (arrays)
+EMember.    Expr7 ::= Expr6 "." Ident ;       -- extension (objects)
+Neg.        Expr5 ::= "-" Expr6 ;
+Not.        Expr5 ::= "!" Expr6 ;
+EMul.       Expr4 ::= Expr4 MulOp Expr5 ;
+EAdd.       Expr3 ::= Expr3 AddOp Expr4 ;
+ERel.       Expr2 ::= Expr2 RelOp Expr3 ;
+EAnd.       Expr1 ::= Expr2 "&&" Expr1 ;
+EOr.        Expr  ::= Expr1 "||" Expr ;
+ENewClass.  Expr  ::= "new" ClassType ;         -- extension (objects)
+ENewArray.  Expr  ::= "new" Type "[" Expr "]" ; -- extension (arrays)
 
-coercions  Expr 9 ;
-separator  Expr "," ;
+coercions   Expr 9 ;
+separator   Expr "," ;
 
 
 -- operators -----------------------------------------------

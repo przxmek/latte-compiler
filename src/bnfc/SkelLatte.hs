@@ -79,6 +79,7 @@ transExpr x = case x of
   ELitTrue -> failure x
   ELitFalse -> failure x
   EString string -> failure x
+  EClassNull classtype -> failure x
   EApp expr exprs -> failure x
   EArrSub expr1 expr2 -> failure x
   EMember expr ident -> failure x

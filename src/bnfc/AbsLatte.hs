@@ -71,6 +71,7 @@ data Expr
     | ELitTrue
     | ELitFalse
     | EString String
+    | EClassNull ClassType
     | EApp Expr [Expr]
     | EArrSub Expr Expr
     | EMember Expr Ident

@@ -19,42 +19,43 @@ import ErrM
   '&&' { PT _ (TS _ 4) }
   '(' { PT _ (TS _ 5) }
   ')' { PT _ (TS _ 6) }
-  '*' { PT _ (TS _ 7) }
-  '+' { PT _ (TS _ 8) }
-  '++' { PT _ (TS _ 9) }
-  ',' { PT _ (TS _ 10) }
-  '-' { PT _ (TS _ 11) }
-  '--' { PT _ (TS _ 12) }
-  '.' { PT _ (TS _ 13) }
-  '/' { PT _ (TS _ 14) }
-  ':' { PT _ (TS _ 15) }
-  ';' { PT _ (TS _ 16) }
-  '<' { PT _ (TS _ 17) }
-  '<=' { PT _ (TS _ 18) }
-  '=' { PT _ (TS _ 19) }
-  '==' { PT _ (TS _ 20) }
-  '>' { PT _ (TS _ 21) }
-  '>=' { PT _ (TS _ 22) }
-  '[' { PT _ (TS _ 23) }
-  '[]' { PT _ (TS _ 24) }
-  ']' { PT _ (TS _ 25) }
-  'boolean' { PT _ (TS _ 26) }
-  'class' { PT _ (TS _ 27) }
-  'else' { PT _ (TS _ 28) }
-  'extends' { PT _ (TS _ 29) }
-  'false' { PT _ (TS _ 30) }
-  'for' { PT _ (TS _ 31) }
-  'if' { PT _ (TS _ 32) }
-  'int' { PT _ (TS _ 33) }
-  'new' { PT _ (TS _ 34) }
-  'return' { PT _ (TS _ 35) }
-  'string' { PT _ (TS _ 36) }
-  'true' { PT _ (TS _ 37) }
-  'void' { PT _ (TS _ 38) }
-  'while' { PT _ (TS _ 39) }
-  '{' { PT _ (TS _ 40) }
-  '||' { PT _ (TS _ 41) }
-  '}' { PT _ (TS _ 42) }
+  ')null' { PT _ (TS _ 7) }
+  '*' { PT _ (TS _ 8) }
+  '+' { PT _ (TS _ 9) }
+  '++' { PT _ (TS _ 10) }
+  ',' { PT _ (TS _ 11) }
+  '-' { PT _ (TS _ 12) }
+  '--' { PT _ (TS _ 13) }
+  '.' { PT _ (TS _ 14) }
+  '/' { PT _ (TS _ 15) }
+  ':' { PT _ (TS _ 16) }
+  ';' { PT _ (TS _ 17) }
+  '<' { PT _ (TS _ 18) }
+  '<=' { PT _ (TS _ 19) }
+  '=' { PT _ (TS _ 20) }
+  '==' { PT _ (TS _ 21) }
+  '>' { PT _ (TS _ 22) }
+  '>=' { PT _ (TS _ 23) }
+  '[' { PT _ (TS _ 24) }
+  '[]' { PT _ (TS _ 25) }
+  ']' { PT _ (TS _ 26) }
+  'boolean' { PT _ (TS _ 27) }
+  'class' { PT _ (TS _ 28) }
+  'else' { PT _ (TS _ 29) }
+  'extends' { PT _ (TS _ 30) }
+  'false' { PT _ (TS _ 31) }
+  'for' { PT _ (TS _ 32) }
+  'if' { PT _ (TS _ 33) }
+  'int' { PT _ (TS _ 34) }
+  'new' { PT _ (TS _ 35) }
+  'return' { PT _ (TS _ 36) }
+  'string' { PT _ (TS _ 37) }
+  'true' { PT _ (TS _ 38) }
+  'void' { PT _ (TS _ 39) }
+  'while' { PT _ (TS _ 40) }
+  '{' { PT _ (TS _ 41) }
+  '||' { PT _ (TS _ 42) }
+  '}' { PT _ (TS _ 43) }
 
 L_ident  { PT _ (TV $$) }
 L_integ  { PT _ (TI $$) }
@@ -138,7 +139,8 @@ Expr8 : Integer { AbsLatte.ELitInt $1 }
       | String { AbsLatte.EString $1 }
       | Expr9 { $1 }
 Expr7 :: { Expr }
-Expr7 : Expr6 '(' ListExpr ')' { AbsLatte.EApp $1 $3 }
+Expr7 : '(' ClassType ')null' { AbsLatte.EClassNull $2 }
+      | Expr6 '(' ListExpr ')' { AbsLatte.EApp $1 $3 }
       | Expr6 '[' Expr ']' { AbsLatte.EArrSub $1 $3 }
       | Expr6 '.' Ident { AbsLatte.EMember $1 $3 }
       | Expr8 { $1 }

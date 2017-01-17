@@ -149,6 +149,7 @@ checkExpr (ELitInt _)              = return $ BaseTypeDef TInt
 checkExpr  ELitTrue                = return $ BaseTypeDef TBool
 checkExpr  ELitFalse               = return $ BaseTypeDef TBool
 checkExpr (EString _)              = return $ BaseTypeDef TStr
+checkExpr (EClassNull classtype)   = return $ ClassTypeDef classtype
 checkExpr (ENewClass classtype)    = return $ ClassTypeDef classtype
 checkExpr (ENewArray type_ expr)   = checkExprNewArray type_ expr
 checkExpr (EArrSub expr1 expr2)    = checkExprArraySubscript expr1 expr2

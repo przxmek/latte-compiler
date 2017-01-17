@@ -170,6 +170,7 @@ instance Print Expr where
     ELitTrue -> prPrec i 8 (concatD [doc (showString "true")])
     ELitFalse -> prPrec i 8 (concatD [doc (showString "false")])
     EString str -> prPrec i 8 (concatD [prt 0 str])
+    EClassNull classtype -> prPrec i 7 (concatD [doc (showString "("), prt 0 classtype, doc (showString ")null")])
     EApp expr exprs -> prPrec i 7 (concatD [prt 6 expr, doc (showString "("), prt 0 exprs, doc (showString ")")])
     EArrSub expr1 expr2 -> prPrec i 7 (concatD [prt 6 expr1, doc (showString "["), prt 0 expr2, doc (showString "]")])
     EMember expr id -> prPrec i 7 (concatD [prt 6 expr, doc (showString "."), prt 0 id])

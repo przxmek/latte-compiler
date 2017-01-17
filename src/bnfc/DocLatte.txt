@@ -40,11 +40,12 @@ The reserved words used in Latte are the following:
 The symbols used in Latte are the following:
   | { | } | ( | )
   | , | ; | = | ++
-  | -- | : | [] | [
-  | ] | . | - | !
-  | && | || | + | *
-  | / | % | < | <=
-  | > | >= | == | !=
+  | -- | : | [] | )null
+  | [ | ] | . | -
+  | ! | && | || | +
+  | * | / | % | <
+  | <= | > | >= | ==
+  | != |  |  | 
 
 ===Comments===
 Single-line comments begin with #, //.Multiple-line comments are  enclosed with /* and */.
@@ -109,7 +110,8 @@ All other symbols are terminals.
   |  |  **|**  | ``false`` 
   |  |  **|**  | //String// 
   |  |  **|**  | //Expr9// 
-  | //Expr7// | -> | //Expr6// ``(`` //[Expr]// ``)`` 
+  | //Expr7// | -> | ``(`` //ClassType// ``)null`` 
+  |  |  **|**  | //Expr6// ``(`` //[Expr]// ``)`` 
   |  |  **|**  | //Expr6// ``[`` //Expr// ``]`` 
   |  |  **|**  | //Expr6// ``.`` //Ident// 
   |  |  **|**  | //Expr8// 
