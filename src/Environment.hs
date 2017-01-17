@@ -62,9 +62,9 @@ newVar newType ident = do
       put(M.insert ident newType store:stores, c, e)
 
 newClass :: Ident -> ClassExt -> ClassMemberStore -> EnvState ()
-newClass ident ext fields = do
+newClass ident ext members = do
   (s, c, e) <- get
-  let c' = M.insert ident (ext, fields) c
+  let c' = M.insert ident (ext, members) c
   put (s, c', e)
 
 getClassMember :: Ident -> Ident -> EnvState Type

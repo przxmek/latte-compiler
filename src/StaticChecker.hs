@@ -4,10 +4,10 @@
 
 module StaticChecker where
 
+import           Control.Monad
+import qualified Data.Map      as M
 
 import           AbsLatte
-import           Control.Monad
-
 import           Environment
 
 
@@ -24,9 +24,23 @@ saveTopDefs (def:defs) = do
   case def of
     TopDefFunc (FuncDef type_ ident fargs _) ->
       newVar (FuncTypeDef (TFunc type_ [t | FArg t _ <- fargs])) ident
-    TopDefClass _ _ ->
-      return () -- @TODO
+    TopDefClass classHead membersDef ->
+      newClass ident ext members
+      where
+        (ident, ext) = case classHead of
+          ClassHeadDef i                  -> (i, BaseClass)
+          ClassHeadExtDef i (TClass base) -> (i, ExtClass base)
+
+        decls = [(dident, dtype) | DeclField dtype idents <- membersDef, dident <- idents]
+        funcs  = [(fident, FuncTypeDef (TFunc rtype (types fargs))) | FuncField (FuncDef rtype fident fargs _) <- membersDef ]
+
+        members = M.fromList (decls ++ funcs)
+
+        types []                      = []
+        types (FArg argtype _ : args) = argtype : types args
+
   saveTopDefs defs
+
 
 checkTopDefs :: [TopDef] -> EnvState ()
 checkTopDefs [] = return ()
