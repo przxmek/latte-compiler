@@ -31,8 +31,11 @@ saveTopDefs (def:defs) = do
           ClassHeadDef i                  -> (i, BaseClass)
           ClassHeadExtDef i (TClass base) -> (i, ExtClass base)
 
-        decls = [(dident, dtype) | DeclField dtype idents <- membersDef, dident <- idents]
-        funcs  = [(fident, FuncTypeDef (TFunc rtype (types fargs))) | FuncField (FuncDef rtype fident fargs _) <- membersDef ]
+        decls = [(dident, dtype) |
+                  DeclField dtype idents <- membersDef,
+                  dident <- idents]
+        funcs = [(fident, FuncTypeDef (TFunc rtype (types fargs))) |
+                  FuncField (FuncDef rtype fident fargs _) <- membersDef ]
 
         members = M.fromList (decls ++ funcs)
 
@@ -46,9 +49,24 @@ checkTopDefs :: [TopDef] -> EnvState ()
 checkTopDefs [] = return ()
 checkTopDefs (def:defs) = do
   case def of
-    TopDefFunc funcDef -> checkFuncDef funcDef
-    TopDefClass _ _    -> return () -- @TODO
+    TopDefFunc funcDef            -> checkFuncDef funcDef
+    TopDefClass classHead members -> checkTopDefClass classHead members
   checkTopDefs defs
+
+
+checkTopDefClass :: ClassHead -> [MemberDecl] -> EnvState ()
+checkTopDefClass classHead memberDecls = do
+  members <- getClassMembers className
+  newScope
+  foldr ((>>) . newVars) (return ()) members
+  foldr ((>>) . checkFuncDef) (return ()) methods
+  exitScope
+  where
+    className = case classHead of
+      ClassHeadDef c -> c
+      ClassHeadExtDef c _ -> c
+    newVars (v, t) = newVar t v
+    methods = [f | FuncField f <- memberDecls]
 
 
 checkFuncDef :: FuncDef -> EnvState ()
