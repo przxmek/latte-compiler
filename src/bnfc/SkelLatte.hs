@@ -79,8 +79,6 @@ transExpr x = case x of
   ELitTrue -> failure x
   ELitFalse -> failure x
   EString string -> failure x
-  ENewClass classtype -> failure x
-  ENewArray type_ expr -> failure x
   EApp expr exprs -> failure x
   EArrSub expr1 expr2 -> failure x
   EMember expr ident -> failure x
@@ -91,6 +89,8 @@ transExpr x = case x of
   ERel expr1 relop expr2 -> failure x
   EAnd expr1 expr2 -> failure x
   EOr expr1 expr2 -> failure x
+  ENewClass classtype -> failure x
+  ENewArray type_ expr -> failure x
 transAddOp :: AddOp -> Result
 transAddOp x = case x of
   OpPlus -> failure x

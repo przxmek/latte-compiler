@@ -96,9 +96,6 @@ All other symbols are terminals.
   | //Type// | -> | //BaseType// 
   |  |  **|**  | //ArrayType// 
   |  |  **|**  | //ClassType// 
-  | //[Type]// | -> | **eps**
-  |  |  **|**  | //Type// 
-  |  |  **|**  | //Type// ``,`` //[Type]// 
   | //BaseType// | -> | ``int`` 
   |  |  **|**  | ``string`` 
   |  |  **|**  | ``boolean`` 
@@ -112,13 +109,10 @@ All other symbols are terminals.
   |  |  **|**  | ``false`` 
   |  |  **|**  | //String// 
   |  |  **|**  | //Expr9// 
-  | //Expr7// | -> | ``new`` //ClassType// 
-  |  |  **|**  | ``new`` //Type// ``[`` //Expr// ``]`` 
-  |  |  **|**  | //Expr8// 
-  | //Expr6// | -> | //Expr6// ``(`` //[Expr]// ``)`` 
+  | //Expr7// | -> | //Expr6// ``(`` //[Expr]// ``)`` 
   |  |  **|**  | //Expr6// ``[`` //Expr// ``]`` 
   |  |  **|**  | //Expr6// ``.`` //Ident// 
-  |  |  **|**  | //Expr7// 
+  |  |  **|**  | //Expr8// 
   | //Expr5// | -> | ``-`` //Expr6// 
   |  |  **|**  | ``!`` //Expr6// 
   |  |  **|**  | //Expr6// 
@@ -131,7 +125,10 @@ All other symbols are terminals.
   | //Expr1// | -> | //Expr2// ``&&`` //Expr1// 
   |  |  **|**  | //Expr2// 
   | //Expr// | -> | //Expr1// ``||`` //Expr// 
+  |  |  **|**  | ``new`` //ClassType// 
+  |  |  **|**  | ``new`` //Type// ``[`` //Expr// ``]`` 
   |  |  **|**  | //Expr1// 
+  | //Expr6// | -> | //Expr7// 
   | //[Expr]// | -> | **eps**
   |  |  **|**  | //Expr// 
   |  |  **|**  | //Expr// ``,`` //[Expr]// 

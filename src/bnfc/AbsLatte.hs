@@ -71,8 +71,6 @@ data Expr
     | ELitTrue
     | ELitFalse
     | EString String
-    | ENewClass ClassType
-    | ENewArray Type Expr
     | EApp Expr [Expr]
     | EArrSub Expr Expr
     | EMember Expr Ident
@@ -83,6 +81,8 @@ data Expr
     | ERel Expr RelOp Expr
     | EAnd Expr Expr
     | EOr Expr Expr
+    | ENewClass ClassType
+    | ENewArray Type Expr
   deriving (Eq, Ord, Show, Read)
 
 data AddOp = OpPlus | OpMinus

@@ -120,10 +120,6 @@ Type :: { Type }
 Type : BaseType { AbsLatte.BaseTypeDef $1 }
      | ArrayType { AbsLatte.ArrayTypeDef $1 }
      | ClassType { AbsLatte.ClassTypeDef $1 }
-ListType :: { [Type] }
-ListType : {- empty -} { [] }
-         | Type { (:[]) $1 }
-         | Type ',' ListType { (:) $1 $3 }
 BaseType :: { BaseType }
 BaseType : 'int' { AbsLatte.TInt }
          | 'string' { AbsLatte.TStr }
@@ -142,14 +138,10 @@ Expr8 : Integer { AbsLatte.ELitInt $1 }
       | String { AbsLatte.EString $1 }
       | Expr9 { $1 }
 Expr7 :: { Expr }
-Expr7 : 'new' ClassType { AbsLatte.ENewClass $2 }
-      | 'new' Type '[' Expr ']' { AbsLatte.ENewArray $2 $4 }
-      | Expr8 { $1 }
-Expr6 :: { Expr }
-Expr6 : Expr6 '(' ListExpr ')' { AbsLatte.EApp $1 $3 }
+Expr7 : Expr6 '(' ListExpr ')' { AbsLatte.EApp $1 $3 }
       | Expr6 '[' Expr ']' { AbsLatte.EArrSub $1 $3 }
       | Expr6 '.' Ident { AbsLatte.EMember $1 $3 }
-      | Expr7 { $1 }
+      | Expr8 { $1 }
 Expr5 :: { Expr }
 Expr5 : '-' Expr6 { AbsLatte.Neg $2 }
       | '!' Expr6 { AbsLatte.Not $2 }
@@ -163,7 +155,12 @@ Expr2 : Expr2 RelOp Expr3 { AbsLatte.ERel $1 $2 $3 } | Expr3 { $1 }
 Expr1 :: { Expr }
 Expr1 : Expr2 '&&' Expr1 { AbsLatte.EAnd $1 $3 } | Expr2 { $1 }
 Expr :: { Expr }
-Expr : Expr1 '||' Expr { AbsLatte.EOr $1 $3 } | Expr1 { $1 }
+Expr : Expr1 '||' Expr { AbsLatte.EOr $1 $3 }
+     | 'new' ClassType { AbsLatte.ENewClass $2 }
+     | 'new' Type '[' Expr ']' { AbsLatte.ENewArray $2 $4 }
+     | Expr1 { $1 }
+Expr6 :: { Expr }
+Expr6 : Expr7 { $1 }
 ListExpr :: { [Expr] }
 ListExpr : {- empty -} { [] }
          | Expr { (:[]) $1 }
