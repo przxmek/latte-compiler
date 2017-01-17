@@ -43,8 +43,9 @@ saveTopDefs (def:defs) = do
                   dident <- idents]
         funcs = [(fident, FuncTypeDef (TFunc rtype (types fargs))) |
                   FuncField (FuncDef rtype fident fargs _) <- membersDef ]
+        self = (Ident "self", ClassTypeDef (TClass ident))
 
-        members = M.fromList (decls ++ funcs)
+        members = M.fromList $ self:(decls ++ funcs)
 
         types []                      = []
         types (FArg argtype _ : args) = argtype : types args
