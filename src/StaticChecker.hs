@@ -14,8 +14,15 @@ import           Environment
 checkProgram :: Program -> EnvState ()
 checkProgram (Program []) = return ()
 checkProgram (Program topDefs) = do
+  saveTopDefs stdLibDefs
   saveTopDefs topDefs
   checkTopDefs topDefs
+  where
+    stdLibDefs = [
+      TopDefFunc printIntFuncDef,
+      TopDefFunc printStringFuncDef,
+      TopDefFunc readIntFuncDef,
+      TopDefFunc readStringFuncDef]
 
 
 saveTopDefs :: [TopDef] -> EnvState ()

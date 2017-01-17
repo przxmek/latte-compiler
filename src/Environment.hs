@@ -99,3 +99,37 @@ getClassMembers classIdent = do
     Nothing -> do
       appendError $ "Class " ++ show classIdent ++ " does not exist."
       return []
+
+
+
+
+--- Standard library functions -------------------------------------------------
+
+printIntFuncDef :: FuncDef
+printIntFuncDef = FuncDef retType ident fargs (Block []) where
+  retType = BaseTypeDef TVoid
+  ident = Ident "printInt"
+  fargs  = [FArg (BaseTypeDef TInt) (Ident "arg1")]
+
+
+printStringFuncDef :: FuncDef
+printStringFuncDef = FuncDef retType ident fargs (Block []) where
+  retType = BaseTypeDef TVoid
+  ident = Ident "printString"
+  fargs  = [FArg (BaseTypeDef TStr) (Ident "arg1")]
+
+
+readIntFuncDef :: FuncDef
+readIntFuncDef = FuncDef retType ident fargs (Block []) where
+  retType = BaseTypeDef TInt
+  ident = Ident "readInt"
+  fargs  = []
+
+
+readStringFuncDef :: FuncDef
+readStringFuncDef = FuncDef retType ident fargs (Block []) where
+  retType = BaseTypeDef TStr
+  ident = Ident "readString"
+  fargs  = []
+
+-- End of standard library functions -------------------------------------------
