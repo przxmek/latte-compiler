@@ -57,7 +57,7 @@ checkStmt retType x = case x of
     foldr ((>>) . checkStmt retType) (return ()) stmts
     exitScope
   SDecl type_ items -> checkStmtDecl type_ items
-  SAss expr1 expr2 -> return () -- @TODO
+  SAss expr1 expr2 -> checkStmtAssign expr1 expr2
   SIncr expr -> checkStmt retType (SAss expr $ ELitInt 0)
   SDecr expr -> checkStmt retType (SIncr expr)
   SRet expr -> do
@@ -94,6 +94,20 @@ checkStmtDecl type_ items = do
       exprType <- checkExpr expr
       when (notVoid exprType && type_ /= exprType) appendError
 
+
+checkStmtAssign :: Expr -> Expr -> EnvState ()
+checkStmtAssign expr1 expr2 =
+  if isLvalue expr1 then do
+    lhs <- checkExpr expr1
+    rhs <- checkExpr expr2
+    when (notVoid lhs && notVoid rhs && lhs /= rhs) appendError
+  else appendError
+  where
+    isLvalue expr = case expr of
+      EVar _      -> True
+      EMember _ _ -> True
+      EArrSub _ _ -> True
+      _           -> False
 
 
 
