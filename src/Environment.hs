@@ -32,10 +32,10 @@ exitScope = do
   put(tail s, c, e)
 
 
-appendError :: EnvState ()
-appendError = do
+appendError :: String -> EnvState ()
+appendError errorMsg = do
   (s, c, e) <- get
-  put(s, c, "error" : e)
+  put(s, c, errorMsg : e)
 
 
 lookupVarType :: Ident -> EnvState Type
@@ -44,7 +44,7 @@ lookupVarType ident = do
   lookupStores ident stores where
     lookupStores ident' stores' = case stores' of
       [] -> do
-        appendError
+        appendError $ "Variable " ++ show ident' ++ " does not exist."
         return $ BaseTypeDef TVoid
       s:ss -> case M.lookup ident' s of
         Just v  -> return v
@@ -55,7 +55,7 @@ newVar :: Type -> Ident -> EnvState ()
 newVar newType ident = do
   (store:stores, c, e) <- get
   case M.lookup ident store of
-    Just _ -> appendError
+    Just _ -> appendError $ "Variable " ++ show ident ++ " is already defined."
     Nothing ->
       put(M.insert ident newType store:stores, c, e)
 
@@ -72,12 +72,12 @@ getClassMember classIdent memberIdent = do
   (_, c, _) <- get
   case M.lookup classIdent c of
     Nothing -> do
-      appendError
+      appendError $ "Class " ++ show classIdent ++ " does not exist."
       return $ BaseTypeDef TVoid
     Just (ext, members) -> case M.lookup memberIdent members of
       Nothing -> case ext of
         BaseClass -> do
-          appendError
+          appendError $ "Member " ++ show memberIdent ++ " of class " ++ show classIdent ++ " does not exist."
           return $ BaseTypeDef TVoid
         ExtClass extClass -> getClassMember extClass memberIdent
       Just member -> return member
@@ -97,5 +97,5 @@ getClassMembers classIdent = do
             Just _  -> return False
             Nothing -> return True
     Nothing -> do
-      appendError
+      appendError $ "Class " ++ show classIdent ++ " does not exist."
       return []

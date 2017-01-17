@@ -94,13 +94,19 @@ checkStmt retType x = case x of
   SDecr expr -> checkStmt retType (SIncr expr)
   SRet expr -> do
     exprType <- checkExpr expr
-    when (retType /= exprType) appendError
+    when (retType /= exprType) $
+      appendError $ "Incorrect return value type. (expected "
+        ++ show retType ++ " but got " ++ show exprType ++ ")."
   SVRet ->
-    when (retType /= BaseTypeDef TVoid) appendError
+    when (retType /= BaseTypeDef TVoid) $
+      appendError $ "Incorrect return value type. (expected void"
+        ++ show retType ++ " but got " ++ show (BaseTypeDef TVoid) ++ ")."
   SCond expr stmt -> checkStmt retType $ SCondElse expr stmt SEmpty
   SCondElse expr stmt1 stmt2 -> do
     cond <- checkExpr expr
-    when (cond /= BaseTypeDef TBool) appendError
+    when (cond /= BaseTypeDef TBool) $
+      appendError $ "If statement condition must be of type Bool but got "
+        ++ show cond
     checkStmt retType stmt1
     checkStmt retType stmt2
   SWhile expr stmt -> checkStmt retType $ SCond expr stmt
@@ -113,7 +119,8 @@ checkStmt retType x = case x of
 
 
 checkStmtDecl :: Type -> [Item] -> EnvState ()
-checkStmtDecl (BaseTypeDef TVoid) _ = appendError
+checkStmtDecl (BaseTypeDef TVoid) _ =
+  appendError "Void type declaration is forbidden."
 checkStmtDecl type_ items = do
   let
     noInitVars = [i | NoInit i <- items]
@@ -124,7 +131,9 @@ checkStmtDecl type_ items = do
   where
     compareExprType expr = do
       exprType <- checkExpr expr
-      when (notVoid exprType && type_ /= exprType) appendError
+      when (notVoid exprType && type_ /= exprType) $
+        appendError $ "Expression type " ++ show exprType
+          ++ " does not match the type " ++ show type_ ++ " of the variable."
 
 
 checkStmtAssign :: Expr -> Expr -> EnvState ()
@@ -132,8 +141,11 @@ checkStmtAssign expr1 expr2 =
   if isLvalue expr1 then do
     lhs <- checkExpr expr1
     rhs <- checkExpr expr2
-    when (notVoid lhs && notVoid rhs && lhs /= rhs) appendError
-  else appendError
+    when (notVoid lhs && notVoid rhs && lhs /= rhs) $
+      appendError $ "Right side expression type " ++ show rhs
+        ++ " does not match the assignment type " ++ show lhs ++ "."
+  else appendError $ "Left side expression must be a lvalue, but got "
+        ++ show expr1 ++ "."
   where
     isLvalue expr = case expr of
       EVar _      -> True
@@ -169,7 +181,7 @@ checkExprNewArray type_ expr = do
   _ <- checkUnaryOp expr ArrSubscOp
   if type_ == BaseTypeDef TVoid
     then do
-      appendError
+      appendError "Array type must not be void"
       return $ BaseTypeDef TVoid
     else
       return $ ArrayTypeDef (TArray type_)
@@ -182,7 +194,8 @@ checkExprArraySubscript expr1 expr2 = do
   case arrTypeDef of
     ArrayTypeDef (TArray type_) -> return type_
     _ -> do
-      appendError
+      appendError $ "Expected array type but got " ++ show arrTypeDef
+        ++ " from " ++ show expr1
       return $ BaseTypeDef TVoid
 
 
@@ -192,10 +205,12 @@ checkExprApplication expr exprs = do
   case funcType of
     FuncTypeDef (TFunc retType argsDefType) -> do
       argsActType <- checkExprs exprs
-      when (argsDefType /= argsActType) appendError
+      when (argsDefType /= argsActType) $
+        appendError $ "Function argument type does not match (expected "
+          ++ show argsDefType ++ " but got " ++ show argsActType ++ ")."
       return retType
     _ -> do
-      appendError
+      appendError $ "Function type exptected in " ++ show expr ++ "."
       return $ BaseTypeDef TVoid
     where
       checkExprs [] = return []
@@ -210,17 +225,25 @@ checkExprMember expr memberIdent = do
   lhsType <- checkExpr expr
   case lhsType of
     ClassTypeDef (TClass classIdent) -> getClassMember classIdent memberIdent
+    ArrayTypeDef _ -> case memberIdent of
+      Ident "length" -> return $ BaseTypeDef TInt
+      _ -> do
+        appendError $ "Array doesn't have a member " ++ show memberIdent
+        return $ BaseTypeDef TVoid
     _ -> do
-      appendError
+      appendError $ show lhsType ++ " from " ++ show expr
+        ++ " does not have a member " ++ show memberIdent ++ "."
       return $ BaseTypeDef TVoid
 
 
 checkUnaryOp :: Expr -> UnaryOp -> EnvState Type
 checkUnaryOp expr unaryOp = do
   exprType <- checkExpr expr
-  if exprType `notElem` allowedOpTypes (UnaryOp unaryOp)
+  let allowed = allowedOpTypes (UnaryOp unaryOp)
+  if exprType `notElem` allowed
     then do
-      appendError
+      appendError $ "Couldn't match expected types " ++ show allowed
+        ++ "\n\twith actual type " ++ show exprType
       return $ BaseTypeDef TVoid
     else return exprType
 
@@ -229,19 +252,24 @@ checkBinaryOp :: Expr -> Expr -> BinOp -> EnvState Type
 checkBinaryOp expr1 expr2 binOp = do
   lhsType <- checkExpr expr1
   rhsType <- checkExpr expr2
-  let allowedTypes = allowedOpTypes $ BinOp binOp
+  let allowed = allowedOpTypes $ BinOp binOp
   if (notVoid lhsType && notVoid rhsType && lhsType /= rhsType)
-      || lhsType `notElem` allowedTypes || rhsType `notElem` allowedTypes
+      || lhsType `notElem` allowed || rhsType `notElem` allowed
     then do
-      appendError
+      appendError $ "Couldn't match expected types " ++ show allowed
+        ++ "\n\twith actual type " ++ show lhsType ++ ", "
+        ++ show rhsType ++ "."
       return $ BaseTypeDef TVoid
     else
-      return lhsType
+      return lhsType -- @TODO Fix this. RelOp always return Bool type
 
 
 verifyArrayElem :: Type -> Type -> EnvState ()
 verifyArrayElem elemType arrType = do
-  when (arrType /= ArrayTypeDef (TArray elemType)) appendError
+  when (arrType /= ArrayTypeDef (TArray elemType)) $
+    appendError $ "Couldn't match expected type "
+      ++ show (ArrayTypeDef (TArray elemType))
+      ++ "\n\twith actual type " ++ show arrType ++ "."
   return ()
 
 
@@ -249,7 +277,6 @@ notVoid :: Type -> Bool
 notVoid t = t /= BaseTypeDef TVoid
 
 
--- @TODO czy te voidy są konieczne?
 allowedOpTypes :: Op -> [Type]
 allowedOpTypes (UnaryOp unOp) = case unOp of
   NegOp      -> [BaseTypeDef TVoid, BaseTypeDef TInt]
@@ -259,5 +286,5 @@ allowedOpTypes (BinOp binOp) = BaseTypeDef TVoid : case binOp of
   AddOp OpPlus -> [BaseTypeDef TInt, BaseTypeDef TStr]
   AddOp _      -> [BaseTypeDef TInt]
   MulOp _      -> [BaseTypeDef TInt]
-  RelOp _      -> [BaseTypeDef TInt]
+  RelOp _      -> [BaseTypeDef TBool, BaseTypeDef TInt]
   LogOp        -> [BaseTypeDef TBool]
