@@ -6,8 +6,7 @@ import qualified Data.Map            as M
 
 
 data ClassExt = BaseClass | ExtClass Ident
-data ClassMember = Var Type | Method Type [Type]
-type ClassMemberStore = M.Map Ident ClassMember
+type ClassMemberStore = M.Map Ident Type
 
 type Store = M.Map Ident Type
 type ClassStore = M.Map Ident (ClassExt, ClassMemberStore)
@@ -68,17 +67,17 @@ newClass ident ext fields = do
   let c' = M.insert ident (ext, fields) c
   put (s, c', e)
 
-getClassMember :: Ident -> Ident -> EnvState ClassMember
+getClassMember :: Ident -> Ident -> EnvState Type
 getClassMember classIdent memberIdent = do
   (_, c, _) <- get
   case M.lookup classIdent c of
     Nothing -> do
       appendError
-      return $ Var $ BaseTypeDef TVoid
+      return $ BaseTypeDef TVoid
     Just (ext, members) -> case M.lookup memberIdent members of
       Nothing -> case ext of
         BaseClass -> do
           appendError
-          return $ Var $ BaseTypeDef TVoid
+          return $ BaseTypeDef TVoid
         ExtClass extClass -> getClassMember extClass memberIdent
       Just member -> return member
