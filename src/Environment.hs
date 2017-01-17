@@ -17,6 +17,10 @@ type Environment = ([Store], ClassStore, [ErrorMsg])
 type EnvState a = State Environment a
 
 
+initEnv :: Environment
+initEnv = ([M.empty], M.empty, [])
+
+
 newScope :: EnvState ()
 newScope = do
   (s, c, e) <- get

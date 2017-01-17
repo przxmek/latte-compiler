@@ -63,7 +63,7 @@ checkTopDefClass classHead memberDecls = do
   exitScope
   where
     className = case classHead of
-      ClassHeadDef c -> c
+      ClassHeadDef c      -> c
       ClassHeadExtDef c _ -> c
     newVars (v, t) = newVar t v
     methods = [f | FuncField f <- memberDecls]

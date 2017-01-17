@@ -1,27 +1,55 @@
 module Main where
 
-  import System.Environment ( getArgs )
-  import System.FilePath ( replaceExtension )
-  import System.Process ( system )
+import           Control.Monad.State (execState)
+import           System.Environment  (getArgs)
+import           System.Exit         (exitFailure, exitSuccess)
+import           System.IO           (hPutStrLn, stderr)
 
-  import CompilerLLVM ( compile )
-  import MainCommon ( run, showHelp )
+import           Environment
+import           ErrM
+import           ParLatte
+import           StaticChecker       (checkProgram)
 
 
-  main :: IO ()
-  main = do
-    args <- getArgs
-    case args of
-      ["--help"]  -> showHelp
-      [file]      -> do
-        txt <- run file compile
+runProgram :: String -> IO ()
+runProgram progTxt = case pProgram (myLexer progTxt) of
+  Ok prog -> case getErrors (execState (checkProgram prog) initEnv) of
+    []     -> do
+      putStrLn "StaticChecker OK"
+      exitSuccess
+    errors -> showErrors errors
+  Bad s -> do
+    hPutStrLn stderr $ "[Syntax error] " ++ s
+    exitFailure
 
-        let outputFilePath = replaceExtension file ".ll"
-        writeFile outputFilePath txt
-        putStrLn $ "Generated: " ++ outputFilePath
-        -- llvm-link -o out.bc foo.bc runtime.bc
-        system $ "llvm-link -v -o " ++ replaceExtension outputFilePath ".bc" ++ " " ++ outputFilePath
 
-        return ()    
-      _           -> showHelp
+getErrors :: Environment -> [ErrorMsg]
+getErrors env = let (_, _, e) = env in e
 
+
+showErrors :: [ErrorMsg] -> IO ()
+showErrors [] = return ()
+showErrors (e:errors) = do
+  showErrors errors
+  hPutStrLn stderr e
+  exitFailure
+
+
+showHelp :: IO ()
+showHelp = do
+  putStrLn $ unlines
+    [ "usage: Call with one of the following argument combinations:"
+    , "  --help          Display this help message."
+    , "  filePath        Parse content of file."
+    ]
+  exitFailure
+
+
+main :: IO ()
+main = do
+  args <- getArgs
+  case args of
+    ["--help"] -> showHelp
+    [file]     -> readFile file >>= runProgram
+    []         -> getContents >>= runProgram
+    _          -> showHelp
