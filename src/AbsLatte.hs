@@ -46,11 +46,15 @@ data Item = NoInit Ident | Init Ident Expr
 
 data Type
     = BaseTypeDef BaseType
+    | FuncTypeDef FuncType
     | ArrayTypeDef ArrayType
     | ClassTypeDef ClassType
   deriving (Eq, Ord, Show, Read)
 
 data BaseType = TInt | TStr | TBool | TVoid
+  deriving (Eq, Ord, Show, Read)
+
+data FuncType = TFunc Type [Type]
   deriving (Eq, Ord, Show, Read)
 
 data ArrayType = TArray Type
@@ -80,8 +84,11 @@ data Expr
   deriving (Eq, Ord, Show, Read)
 
 data Op = UnaryOp UnaryOp | BinOp BinOp
-data UnaryOp = NegOp | NotOp
+  deriving (Eq, Ord, Show, Read)
+data UnaryOp = NegOp | NotOp | ArrSubscOp
+  deriving (Eq, Ord, Show, Read)
 data BinOp = AddOp AddOp | MulOp MulOp | RelOp RelOp | LogOp
+  deriving (Eq, Ord, Show, Read)
 
 data AddOp = OpPlus | OpMinus
   deriving (Eq, Ord, Show, Read)
