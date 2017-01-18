@@ -78,24 +78,36 @@ checkTopDefClass classHead memberDecls = do
 
 
 checkFuncDef :: FuncDef -> EnvState ()
-checkFuncDef (FuncDef type_ _ fargs block) = do
+checkFuncDef (FuncDef retType _ fargs block) = do
   newScope
   foldr ((>>) . defineArg) (return ()) fargs
-  checkStmt type_ (SBlStmt block)
+  retVal <- checkStmt retType (SBlStmt block)
   exitScope
+  when (retVal /= retType) $
+      appendError $ "Invalid return type\nCouldn't match expected type "
+        ++ show retType  ++ "\n\twith actual type " ++ show retVal
   where
     defineArg (FArg t var) = newVar t var
 
 
 
 
-checkStmt :: Type -> Stmt -> EnvState ()
+checkStmt :: Type -> Stmt -> EnvState Type
 checkStmt retType x = case x of
-  SEmpty -> return ()
+  SEmpty -> returnVoid
   SBlStmt (Block stmts) -> do
     newScope
-    foldr ((>>) . checkStmt retType) (return ()) stmts
+    retVal <- checkStmts stmts
     exitScope
+    return retVal
+    where
+      checkStmts [] = returnVoid
+      checkStmts (stmt:stmts') = do
+        retVal <- checkStmt retType stmt
+        prevRetVal <- checkStmts stmts'
+        if retVal /= BaseTypeDef TVoid
+          then return retVal
+          else return prevRetVal
   SDecl type_ items -> checkStmtDecl type_ items
   SAss expr1 expr2 -> checkStmtAssign expr1 expr2
   SIncr expr -> checkStmt retType (SAss expr $ ELitInt 0)
@@ -106,32 +118,44 @@ checkStmt retType x = case x of
     unless typesCheck $
       appendError $ "Incorrect return value type. (expected "
         ++ show retType ++ " but got " ++ show exprType ++ ")."
-  SVRet ->
+    return retType
+  SVRet -> do
     when (retType /= BaseTypeDef TVoid) $
       appendError $ "Incorrect return value type. (expected void"
         ++ show retType ++ " but got " ++ show (BaseTypeDef TVoid) ++ ")."
+    returnVoid
   SCond expr stmt -> checkStmt retType $ SCondElse expr stmt SEmpty
   SCondElse expr stmt1 stmt2 -> do
     cond <- checkExpr expr
     when (cond /= BaseTypeDef TBool) $
       appendError $ "If statement condition must be of type Bool but got "
         ++ show cond
-    checkStmt retType stmt1
-    checkStmt retType stmt2
+    retValT <- checkStmt retType stmt1
+    retValF <- checkStmt retType stmt2
+    case expr of
+      ELitTrue  -> return retValT
+      ELitFalse -> return retValF
+      _         -> if notVoid retValT && notVoid retValF
+                     then return retValT
+                     else returnVoid
   SWhile expr stmt -> checkStmt retType $ SCond expr stmt
   SFor type_ ident expr stmt -> do
     arrType <- checkExpr expr
     verifyArrayElem type_ arrType
     newScope
     newVar type_ ident
-    checkStmt retType stmt
+    retVal <- checkStmt retType stmt
     exitScope
-  SExp expr -> void $ checkExpr expr
+    return retVal
+  SExp expr -> do
+    _ <- checkExpr expr
+    returnVoid
 
 
-checkStmtDecl :: Type -> [Item] -> EnvState ()
-checkStmtDecl (BaseTypeDef TVoid) _ =
+checkStmtDecl :: Type -> [Item] -> EnvState Type
+checkStmtDecl (BaseTypeDef TVoid) _ = do
   appendError "Void type declaration is forbidden."
+  returnVoid
 checkStmtDecl type_ items = do
   let
     noInitVars = [i | NoInit i <- items]
@@ -139,6 +163,7 @@ checkStmtDecl type_ items = do
     exprs = [e | Init _ e <- items]
   foldr ((>>) . compareExprType) (return ()) exprs
   foldr ((>>) . newVar type_) (return ()) (noInitVars ++ initVars)
+  returnVoid
   where
     compareExprType expr = do
       exprType <- checkExpr expr
@@ -148,7 +173,7 @@ checkStmtDecl type_ items = do
           ++ " does not match the type " ++ show type_ ++ " of the variable."
 
 
-checkStmtAssign :: Expr -> Expr -> EnvState ()
+checkStmtAssign :: Expr -> Expr -> EnvState Type
 checkStmtAssign expr1 expr2 =
   if isLvalue expr1 then do
     lhs <- checkExpr expr1
@@ -157,8 +182,11 @@ checkStmtAssign expr1 expr2 =
     when (notVoid lhs && notVoid rhs && not typesCheck) $
       appendError $ "Right side expression type " ++ show rhs
         ++ " does not match the assignment type " ++ show lhs ++ "."
-  else appendError $ "Left side expression must be a lvalue, but got "
-        ++ show expr1 ++ "."
+    returnVoid
+  else do
+    appendError $ "Left side expression must be a lvalue, but got "
+      ++ show expr1 ++ "."
+    returnVoid
   where
     isLvalue expr = case expr of
       EVar _      -> True
@@ -195,7 +223,7 @@ checkExprNewArray type_ expr = do
   if type_ == BaseTypeDef TVoid
     then do
       appendError "Array type must not be void"
-      return $ BaseTypeDef TVoid
+      returnVoid
     else
       return $ ArrayTypeDef (TArray type_)
 
@@ -209,7 +237,7 @@ checkExprArraySubscript expr1 expr2 = do
     _ -> do
       appendError $ "Expected array type but got " ++ show arrTypeDef
         ++ " from " ++ show expr1
-      return $ BaseTypeDef TVoid
+      returnVoid
 
 
 checkExprApplication :: Expr -> [Expr] -> EnvState Type
@@ -225,7 +253,7 @@ checkExprApplication expr exprs = do
       return retType
     _ -> do
       appendError $ "Function type exptected in " ++ show expr ++ "."
-      return $ BaseTypeDef TVoid
+      returnVoid
     where
       checkExprs [] = return []
       checkExprs (expr':exprs') = do
@@ -251,11 +279,11 @@ checkExprMember expr memberIdent = do
       Ident "length" -> return $ BaseTypeDef TInt
       _ -> do
         appendError $ "Array doesn't have a member " ++ show memberIdent
-        return $ BaseTypeDef TVoid
+        returnVoid
     _ -> do
       appendError $ show lhsType ++ " from " ++ show expr
         ++ " does not have a member " ++ show memberIdent ++ "."
-      return $ BaseTypeDef TVoid
+      returnVoid
 
 
 checkUnaryOp :: Expr -> UnaryOp -> EnvState Type
@@ -266,7 +294,7 @@ checkUnaryOp expr unaryOp = do
     then do
       appendError $ "Couldn't match expected types " ++ show allowed
         ++ "\n\twith actual type " ++ show exprType
-      return $ BaseTypeDef TVoid
+      returnVoid
     else return exprType
 
 
@@ -288,7 +316,7 @@ checkBinaryOp expr1 expr2 binOp = do
       appendError $ "Couldn't match expected types " ++ show allowed
         ++ "\n\twith actual type " ++ show lhsType ++ ", "
         ++ show rhsType ++ "."
-      return $ BaseTypeDef TVoid
+      returnVoid
     else
       return lhsType
 
@@ -323,6 +351,9 @@ verifyArrayElem elemType arrType = do
 
 notVoid :: Type -> Bool
 notVoid t = t /= BaseTypeDef TVoid
+
+returnVoid :: EnvState Type
+returnVoid = return $ BaseTypeDef TVoid
 
 
 allowedOpTypes :: Op -> [Type]
