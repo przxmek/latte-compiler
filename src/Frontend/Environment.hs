@@ -1,4 +1,4 @@
-module Environment where
+module Frontend.Environment where
 
 import           AbsLatte
 import           Control.Monad.State

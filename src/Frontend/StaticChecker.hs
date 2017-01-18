@@ -1,14 +1,10 @@
--- Latte static checker
--- Przemysław Kuczyński (334685)
--- p.kuczynski@student.uw.edu.pl
-
-module StaticChecker where
+module Frontend.StaticChecker where
 
 import           Control.Monad
-import qualified Data.Map      as M
+import qualified Data.Map             as M
 
 import           AbsLatte
-import           Environment
+import           Frontend.Environment
 
 
 checkProgram :: Program -> EnvState ()
