@@ -16,6 +16,7 @@ checkProgram (Program []) = return ()
 checkProgram (Program topDefs) = do
   saveTopDefs stdLibDefs
   saveTopDefs topDefs
+  checkMainFunc
   checkTopDefs topDefs
   where
     stdLibDefs = [
@@ -23,6 +24,16 @@ checkProgram (Program topDefs) = do
       TopDefFunc printStringFuncDef,
       TopDefFunc readIntFuncDef,
       TopDefFunc readStringFuncDef]
+    checkMainFunc = do
+      mainType <- lookupVarType (Ident "main")
+      case mainType of
+        FuncTypeDef (TFunc retType _) -> case retType of
+          BaseTypeDef TInt  -> return ()
+          BaseTypeDef TVoid -> return ()
+          _                 -> mainError
+        _ -> mainError
+      where
+        mainError = appendError "Undefined reference to `main`"
 
 
 saveTopDefs :: [TopDef] -> EnvState ()
