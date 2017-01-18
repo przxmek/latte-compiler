@@ -15,5 +15,5 @@ all:
 clean:
 	cd src && $(MAKE) clean
 
-dist-clean: clean
+distclean: clean
 	-rm latc_llvm
