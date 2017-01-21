@@ -5,3 +5,5 @@ latc_llvm: MainLatte.hs
 
 clean:
 	-rm -rf *.o *.hi
+	-rm -rf Frontend/*.o Frontend/*.hi
+	-rm -rf Generator/*.o Generator/*.hi

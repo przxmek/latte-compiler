@@ -1,6 +1,6 @@
 module Main where
 
-import           Control.Monad.State    (execState)
+import           Control.Monad.State    (evalState, execState)
 import           System.Environment     (getArgs)
 import           System.Exit            (exitFailure, exitSuccess)
 import           System.IO              (hPutStrLn, stderr)
@@ -8,27 +8,41 @@ import           System.IO              (hPutStrLn, stderr)
 import           ErrM
 import qualified Frontend.Environment   as F (initEnv)
 import           Frontend.StaticChecker (checkProgram)
+import qualified Generator.Environment  as G (initEnv)
+import           Generator.Generator    (genProgram)
 import           ParLatte
 
 
 runProgram :: String -> IO ()
 runProgram progTxt = case pProgram (myLexer progTxt) of
   Ok prog -> do
-    let (_, _, e) = execState (checkProgram prog) F.initEnv
+    let (_, _, e) = staticCheck prog
     case e of
       []     -> do
         putStrLn "StaticChecker OK"
+        showCode $ genCode prog
         exitSuccess
-      errors -> showErrors errors
+      errors -> showErrors errors >> exitFailure
   Bad s -> do
     hPutStrLn stderr $ "[Syntax error] " ++ s
     exitFailure
   where
-    showErrors [] = return ()
-    showErrors (e:errors) = do
-      showErrors errors
-      hPutStrLn stderr e
-      exitFailure
+    staticCheck prog = execState (checkProgram prog) F.initEnv
+    genCode prog = evalState (genProgram prog) G.initEnv
+
+
+showCode :: [String] -> IO ()
+showCode [] = return ()
+showCode (line:code) = do
+  showCode code
+  putStrLn line
+
+
+showErrors :: [String] -> IO ()
+showErrors [] = return ()
+showErrors (e:errs) = do
+  showErrors errs
+  hPutStrLn stderr e
 
 
 showHelp :: IO ()
