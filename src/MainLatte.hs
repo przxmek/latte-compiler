@@ -20,7 +20,10 @@ runProgram progTxt = case pProgram (myLexer progTxt) of
     case e of
       []     -> do
         putStrLn "StaticChecker OK"
-        showCode $ genCode prog
+        putStrLn "Generated code:"
+        putStrLn "========================================="
+        putStrLn $ genCode prog
+        putStrLn "========================================="
         exitSuccess
       errors -> showErrors errors >> exitFailure
   Bad s -> do
@@ -29,13 +32,6 @@ runProgram progTxt = case pProgram (myLexer progTxt) of
   where
     staticCheck prog = execState (checkProgram prog) F.initEnv
     genCode prog = evalState (genProgram prog) G.initEnv
-
-
-showCode :: [String] -> IO ()
-showCode [] = return ()
-showCode (line:code) = do
-  showCode code
-  putStrLn line
 
 
 showErrors :: [String] -> IO ()

@@ -7,9 +7,11 @@ import           AbsLatte
 
 
 type Register = Integer
-type Code = [String]
+type Code = String
+type Var = (Register, Type)
+type VarInfo = (String, Type)
 
-type Store = M.Map Ident Register
+type Store = M.Map Ident Var
 
 type Environment = ([Store], Register)
 
@@ -26,19 +28,19 @@ getNextRegister = do
   put (stores, nextReg)
   return nextReg
 
-getVarReg :: Ident -> EnvState Register
-getVarReg var = do
+getVar :: Ident -> EnvState VarInfo
+getVar var = do
   (stores, _) <- get
   lookupStores stores where
     lookupStores stores = case stores of
-      [] -> return 0
+      [] -> return ("Var not found", NoTypeDef)
       s:ss' -> case M.lookup var s of
-        Just v  -> return v
-        Nothing -> lookupStores ss'
+        Just (r, t) -> return ("%" ++ show r, t)
+        Nothing     -> lookupStores ss'
 
-allocVar :: Ident -> EnvState Register
-allocVar var = do
-  (s:ss', _) <- get
+allocVar :: Ident -> Type -> EnvState Register
+allocVar var type_ = do
+  (s:ss, _) <- get
   reg <- getNextRegister
-  put (M.insert var reg s : ss', reg)
+  put (M.insert var (reg, type_) s : ss, reg)
   return reg
