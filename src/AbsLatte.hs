@@ -45,7 +45,8 @@ data Item = NoInit Ident | Init Ident Expr
   deriving (Eq, Ord, Show, Read)
 
 data Type
-    = BaseTypeDef BaseType
+    = NoTypeDef
+    | BaseTypeDef BaseType
     | FuncTypeDef FuncType
     | ArrayTypeDef ArrayType
     | ClassTypeDef ClassType
