@@ -17,21 +17,26 @@ data AndOr = And | Or
 
 
 todo :: Result
-todo = return "NotImplemented\n"
+todo = return $ printf "  %s\n" notImplemented
 
 todoExpr :: ResultExpr
-todoExpr = return ("NotImplemented\n", [], NoTypeDef)
+todoExpr = return (printf "  %s\n" notImplemented, [], NoTypeDef)
 
 
 genStdLib :: EnvState Code
 genStdLib = do
   saveFunType (Ident "printInt") (BaseTypeDef TVoid)
+  saveFunType (Ident "printString") (BaseTypeDef TVoid)
+  saveFunType (Ident "readInt") (BaseTypeDef TInt)
+  saveFunType (Ident "readString") (BaseTypeDef TStr)
   genStdLibDecl
 
 genStdLibDecl :: EnvState Code
-genStdLibDecl = return $
-  "declare void @printInt(i32)\n"
-  ++ "\n"
+genStdLibDecl = return
+  "declare void @printInt(i32)\n\
+  \declare void @printString(i8*)\n\
+  \declare i32 @readInt()\n\
+  \declare i8* @readString()\n\n\n"
 
 
 genProgram :: Program -> Result
@@ -79,8 +84,8 @@ genFuncDef (FuncDef type_ ident@(Ident f) fargs block) = do
         SRet _ -> ""
         SVRet  -> ""
         _      -> case type_ of
-          BaseTypeDef TVoid -> "ret void\n"
-          _                 -> printf "ret %s 0\n" $ typeToLLVM type_
+          BaseTypeDef TVoid -> "  ret void\n"
+          _                 -> printf "  ret %s 0\n" $ typeToLLVM type_
 
 
 genClassDef :: ClassHead -> [MemberDecl] -> Result
@@ -114,7 +119,7 @@ genStmt args (SAss expr1 expr2) = case expr1 of
     (reg, _) <- getVar var
     (code, res, t) <- genExpr args expr2
     let t' = typeToLLVM t
-    return $ code ++ printf "store %s %s, %s* %s\n" t' res t' reg
+    return $ code ++ printf "  store %s %s, %s* %s\n" t' res t' reg
   _ -> todo -- @TODO
 genStmt args (SIncr expr) = case expr of
   EVar _ -> genStmt args $ SAss expr $ EAdd expr OpPlus $ ELitInt 1
@@ -125,9 +130,9 @@ genStmt args (SDecr expr) = case expr of
 genStmt args (SRet expr) = do
   (code, reg, t) <- genExpr args expr
   let t' = typeToLLVM t
-  return $ code ++ printf "ret %s %s\n" t' reg
+  return $ code ++ printf "  ret %s %s\n" t' reg
 genStmt _ SVRet =
-  return "ret void\n"
+  return "  ret void\n"
 genStmt args (SCond expr stmt) = genStmt args (SCondElse expr stmt SEmpty)
 genStmt args (SCondElse expr stmt1 stmt2) = case expr of
   ELitTrue  -> genStmt args stmt1
@@ -163,19 +168,18 @@ genStmtDecl :: ArgMap -> Type -> [Item] -> Result
 genStmtDecl _ _ [] = return []
 genStmtDecl args type_ (item:items) = do
   code <- case item of
-    NoInit var -> genVarAlloc var type_
+    NoInit var -> genVarAlloc var
     Init var expr -> do
-      allocCode <- genVarAlloc var type_
+      allocCode <- genVarAlloc var
       initCode <- genStmt args (SAss (EVar var) expr)
       return $ allocCode ++ initCode
   rest <- genStmtDecl args type_ items
   return $ code ++ rest
-
-
-genVarAlloc :: Ident -> Type -> Result
-genVarAlloc var type_ = do
-  reg <- allocVar var type_
-  return $ reg ++ " = alloca " ++ typeToLLVM type_ ++ "\n"
+  where
+    genVarAlloc var' = do
+      reg <- allocVar var' type_
+      let t' = typeToLLVM type_
+      return $ printf "  %s = alloca %s\n" reg t'
 
 
 
@@ -189,12 +193,14 @@ genExpr args (EVar var) = do
       Nothing -> return ([], [], NoTypeDef)
       Just t' -> let Ident name = var in
         return ("", "%" ++ name, t')
-    _ -> let t' = typeToLLVM t in
-      return (nreg ++ " = load " ++ t' ++ "* " ++ reg ++ "\n", nreg, t)
+    _ ->
+      let t' = typeToLLVM t
+          code = printf "  %s = load %s* %s\n" nreg t' reg in
+      return (code, nreg, t)
 genExpr _ (ELitInt n) = return ("", show n, BaseTypeDef TInt)
 genExpr _ ELitTrue = return ("", "1", BaseTypeDef TBool)
 genExpr _ ELitFalse = return ("", "0", BaseTypeDef TBool)
-genExpr _ (EString _) = todoExpr -- @TODO
+genExpr _ x@(EString _) = return ("  " ++ show x ++ "\n", "", BaseTypeDef TStr)
 genExpr _ (EClassNull _) = todoExpr -- @TODO (objects)
 genExpr args (EApp expr exprs) = genEApp args expr exprs
 genExpr _ (EArrSub _ _) = todoExpr -- @TODO (arrays)
@@ -205,14 +211,16 @@ genExpr args (Neg expr) = do
     ELitInt _ -> return ("", '-':res, t)
     _ -> do
       reg <- getNewRegisterName
-      return (code ++ reg ++ " = mul i32 " ++ res ++ ", -1\n", reg, t)
+      let code' = code ++ printf "  %s = mul i32 %s, -1\n" reg res
+      return (code', reg, t)
 genExpr args (Not expr) = case expr of
   ELitTrue  -> return ("", "false", BaseTypeDef TBool)
   ELitFalse -> return ("", "true", BaseTypeDef TBool)
   _         -> do
     (code, res, t) <- genExpr args expr
     reg <- getNewRegisterName
-    return (code ++ reg ++ " = cor i1 " ++ res ++ ", 1\n", reg, t)
+    let code' = code ++ printf "  %s = xor i1 %s, 1\n" reg res
+    return (code', reg, t)
 genExpr args (EMul expr1 mulop expr2) = genBinaryOp args expr1 expr2 (MulOp mulop)
 genExpr args (EAdd expr1 addop expr2) = genBinaryOp args expr1 expr2 (AddOp addop)
 genExpr args (ERel expr1 relop expr2) = genBinaryOp args expr1 expr2 (RelOp relop)
@@ -230,7 +238,7 @@ genEApp args (EVar ident) exprs = do
   let Ident fname = ident
       prepArgs = intercalate ", " args'
       t' = typeToLLVM retType
-      callCode = printf "%s = call %s @%s(%s)\n" reg t' fname prepArgs
+      callCode = printf "  %s = call %s @%s(%s)\n" reg t' fname prepArgs
   return (argsCode ++ callCode, reg, retType)
   where
     genArgs []           = return ([], [])
@@ -258,12 +266,9 @@ genEAndOr args andor expr1 expr2 = do
         ++ toLLVMLabel lTrue ++ toLLVMJump lEnd
         ++ toLLVMLabel lFalse ++ toLLVMJump lEnd
         ++ toLLVMLabel lEnd ++ reg
-        ++ printf "phi i1 [ 1, %%%s ], [ 0, %%%s ]\n" lTrue lFalse
+        ++ printf "  phi i1 [ 1, %%%s ], [ 0, %%%s ]\n" lTrue lFalse
   return (code, reg, BaseTypeDef TBool)
 
-
-genUnaryOp :: ArgMap -> Expr -> UnaryOp -> ResultExpr
-genUnaryOp _ _ _ = todoExpr -- @TODO
 
 genBinaryOp :: ArgMap -> Expr -> Expr -> BinOp -> ResultExpr
 genBinaryOp _ _ _ (RelOp _) = todoExpr -- @TODO
@@ -276,7 +281,7 @@ genBinaryOp args expr1 expr2 op = do
     _ -> do
       let t' = typeToLLVM t1
           opLLVM = opToLLVM (BinOp op)
-          opCode = printf "%s = %s %s %s, %s\n" reg opLLVM t' res1 res2
+          opCode = printf "  %s = %s %s %s, %s\n" reg opLLVM t' res1 res2
           resultType = case op of
             RelOp _ -> BaseTypeDef TBool
             _       -> t1
@@ -306,6 +311,7 @@ typeToLLVM :: Type -> String
 typeToLLVM (BaseTypeDef TVoid) = "void"
 typeToLLVM (BaseTypeDef TBool) = "i1"
 typeToLLVM (BaseTypeDef TInt)  = "i32"
+typeToLLVM (BaseTypeDef TStr)  = "i8*"
 typeToLLVM _                   = notImplemented
 
 
@@ -313,10 +319,10 @@ toLLVMLabel :: String -> String
 toLLVMLabel = printf "%s:\n"
 
 toLLVMCondJump :: String -> String -> String -> String
-toLLVMCondJump = printf "br i1 %s, label %%%s, label %%%s\n"
+toLLVMCondJump = printf "  br i1 %s, label %%%s, label %%%s\n"
 
 toLLVMJump :: String -> String
-toLLVMJump = printf "br label %%%s\n"
+toLLVMJump = printf "  br label %%%s\n"
 
 
 notImplemented :: String
