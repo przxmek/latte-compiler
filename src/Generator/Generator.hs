@@ -1,5 +1,8 @@
 module Generator.Generator where
 
+import           Control.Monad         (liftM2)
+import           Data.List             (intercalate)
+
 import           AbsLatte
 import           Generator.Environment
 
@@ -7,28 +10,29 @@ type Result = EnvState Code
 type ResultExpr = EnvState (Code, String, Type)
 
 todo :: Result
-todo = return "NotImplemented"
+todo = return "NotImplemented\n"
 
 todoExpr :: ResultExpr
-todoExpr = return ("NotImplemented", [], NoTypeDef)
+todoExpr = return ("NotImplemented\n", [], NoTypeDef)
 
--- @TODO remove?
-genIdent :: Ident -> Result
-genIdent x = case x of
-  Ident string -> todo -- @TODO
+
+genStdLib :: EnvState Code
+genStdLib = do
+  saveFunType (Ident "printInt") (BaseTypeDef TVoid)
+  genStdLibDecl
+
+genStdLibDecl :: EnvState Code
+genStdLibDecl = return $
+  "declare void @printInt(i32)\n"
+  ++ "\n"
 
 
 genProgram :: Program -> Result
-genProgram (Program topdefs) = genTopDefs topdefs
+genProgram (Program topdefs) = liftM2 (++) genStdLib (genTopDefs topdefs)
 
 
 genTopDefs :: [TopDef] -> Result
--- genTopDefs = foldr ((>>) . genTopDef) (return [])
-genTopDefs [] = return []
-genTopDefs (def:defs) = do
-  code <- genTopDef def
-  rest <- genTopDefs defs
-  return $ code ++ rest
+genTopDefs = foldr (liftM2 (++) . genTopDef) (return [])
 
 genTopDef :: TopDef -> Result
 genTopDef (TopDefFunc funcdef)              = genFuncDef funcdef
@@ -36,10 +40,11 @@ genTopDef (TopDefClass classhead membdecls) = genClassDef classhead membdecls
 
 
 genFuncDef :: FuncDef -> Result
-genFuncDef (FuncDef type_ (Ident ident) fargs block) = do
+genFuncDef (FuncDef type_ ident@(Ident f) fargs block) = do
+  saveFunType ident type_
   code <- genStmt (SBlStmt block)
-  return $ "define " ++ typeToLLVM type_ ++ " @" ++ ident ++ "() {\n"
-    ++ code ++ "}\n"
+  return $ "define " ++ typeToLLVM type_ ++ " @" ++ f ++ "() {\n"
+    ++ code ++ "}\n\n"
 
 
 genFArg :: FArg -> Result
@@ -63,17 +68,15 @@ genMemberDecl x = case x of
 
 
 genStmts :: [Stmt] -> Result
--- genStmts = foldr ((>>) . genStmt) (return [])
-genStmts [] = return []
-genStmts (stmt:stmts) = do
-  code <- genStmt stmt
-  rest <- genStmts stmts
-  return $ code ++ rest
-
+genStmts = foldr (liftM2 (++) . genStmt) (return [])
 
 genStmt :: Stmt -> Result
 genStmt SEmpty = return []
-genStmt (SBlStmt (Block stmts)) = genStmts stmts
+genStmt (SBlStmt (Block stmts)) = do
+  newScope
+  code <- genStmts stmts
+  exitScope
+  return code
 genStmt (SDecl type_ items) = genStmtDecl type_ items
 genStmt (SAss expr1 expr2) = case expr1 of
   EVar var -> do
@@ -123,7 +126,7 @@ genStmtDecl type_ (item:items) = do
 genVarAlloc :: Ident -> Type -> Result
 genVarAlloc var type_ = do
   reg <- allocVar var type_
-  return $ "%" ++ show reg ++ " = alloca " ++ typeToLLVM type_ ++ "\n"
+  return $ reg ++ " = alloca " ++ typeToLLVM type_ ++ "\n"
 
 
 
@@ -131,16 +134,15 @@ genVarAlloc var type_ = do
 genExpr :: Expr -> ResultExpr
 genExpr (EVar var) = do
   (reg, t) <- getVar var
-  resultReg <- getNextRegister
-  let res = "%" ++ show resultReg
-      t' = typeToLLVM t
-  return (res ++ " = load " ++ t' ++ "* " ++ reg ++ "\n", res, t)
+  nextReg <- getNextRegisterName
+  let t' = typeToLLVM t
+  return (nextReg ++ " = load " ++ t' ++ "* " ++ reg ++ "\n", nextReg, t)
 genExpr (ELitInt n) = return ("", show n, BaseTypeDef TInt)
 genExpr ELitTrue = return ("", "1", BaseTypeDef TBool)
 genExpr ELitFalse = return ("", "0", BaseTypeDef TBool)
 genExpr (EString string) = todoExpr -- @TODO
 genExpr (EClassNull classtype) = todoExpr -- @TODO (objects)
-genExpr (EApp expr exprs) = todoExpr -- @TODO
+genExpr (EApp expr exprs) = genEApp expr exprs
 genExpr (EArrSub expr1 expr2) = todoExpr -- @TODO (arrays)
 genExpr (EMember expr ident) = todoExpr -- @TODO (objects)
 genExpr (Neg expr) = genUnaryOp expr NegOp
@@ -152,6 +154,26 @@ genExpr (EAnd expr1 expr2) = genBinaryOp expr1 expr2 LogOp
 genExpr (EOr expr1 expr2) = genBinaryOp expr1 expr2 LogOp
 genExpr (ENewClass classtype) = todoExpr -- @TODO (objects)
 genExpr (ENewArray type_ expr) = todoExpr -- @TODO (arrays)
+
+
+genEApp :: Expr -> [Expr] -> ResultExpr
+genEApp (EVar ident) exprs = do
+  (args, argsCode) <- genArgs exprs
+  retType <- getFunType ident
+  reg <- getNextRegisterName
+  let Ident fname = ident
+      prepArgs = intercalate ", " args
+  let callCode = reg ++ " = call " ++ typeToLLVM retType ++ " @" ++ fname
+                 ++ "(" ++ prepArgs ++ ")\n"
+  return (argsCode ++ callCode, reg, retType)
+  where
+    genArgs []           = return ([], [])
+    genArgs (expr:args') = do
+      (code, res, t) <- genExpr expr
+      (a, c) <- genArgs args'
+      return ((typeToLLVM t ++ " " ++ res) : a, code ++ c)
+
+genEApp _ _                = todoExpr -- @TODO
 
 
 genAddOp :: AddOp -> ResultExpr
@@ -182,12 +204,12 @@ genBinaryOp _ _ (RelOp _) = todoExpr -- @TODO
 genBinaryOp expr1 expr2 op = do
   (lhsCode, res1, t1) <- genExpr expr1
   (rhsCode, res2, t2) <- genExpr expr2
-  reg <- getNextRegister
+  reg <- getNextRegisterName
   case t1 of
     BaseTypeDef TInt ->
-      let opCode = "%" ++ show reg ++ " = " ++ opToLLVM (BinOp op) ++ " i32 "
+      let opCode = reg ++ " = " ++ opToLLVM (BinOp op) ++ " i32 "
                    ++ res1 ++ ", " ++ res2 ++ "\n" in
-        return (lhsCode ++ rhsCode ++ opCode, "%" ++ show reg, BaseTypeDef TInt)
+        return (lhsCode ++ rhsCode ++ opCode, reg, BaseTypeDef TInt)
     _ -> todoExpr -- @TODO
 
 
@@ -203,6 +225,7 @@ opToLLVM (BinOp op) = case op of
 
 
 typeToLLVM :: Type -> String
+typeToLLVM (BaseTypeDef TVoid) = "void"
 typeToLLVM (BaseTypeDef TBool) = "i1"
 typeToLLVM (BaseTypeDef TInt)  = "i32"
 typeToLLVM _                   = notImplemented

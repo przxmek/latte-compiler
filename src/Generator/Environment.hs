@@ -8,39 +8,70 @@ import           AbsLatte
 
 type Register = Integer
 type Code = String
-type Var = (Register, Type)
-type VarInfo = (String, Type)
+type Var = (String, Type)
 
 type Store = M.Map Ident Var
+type FunStore = M.Map Ident Type
 
-type Environment = ([Store], Register)
+type Environment = ([Store], FunStore, Register)
 
 type EnvState a = State Environment a
 
 
 initEnv :: Environment
-initEnv = ([M.empty], 0)
+initEnv = ([M.empty], M.empty, 0)
+
+
+newScope :: EnvState ()
+newScope = do
+  (stores, fstore, reg) <- get
+  put (M.empty : stores, fstore, reg)
+
+exitScope :: EnvState ()
+exitScope = do
+  (_:stores, fstore, reg) <- get
+  put (stores, fstore, reg)
+
 
 getNextRegister :: EnvState Register
 getNextRegister = do
-  (stores, reg) <- get
+  (stores, fstore, reg) <- get
   let nextReg = reg + 1
-  put (stores, nextReg)
+  put (stores, fstore, nextReg)
   return nextReg
 
-getVar :: Ident -> EnvState VarInfo
+getNextRegisterName :: EnvState String
+getNextRegisterName = do
+  reg <- getNextRegister
+  return $ "%i" ++ show reg
+
+getVar :: Ident -> EnvState Var
 getVar var = do
-  (stores, _) <- get
+  (stores, _, _) <- get
   lookupStores stores where
     lookupStores stores = case stores of
       [] -> return ("Var not found", NoTypeDef)
       s:ss' -> case M.lookup var s of
-        Just (r, t) -> return ("%" ++ show r, t)
+        Just (r, t) -> return (r, t)
         Nothing     -> lookupStores ss'
 
-allocVar :: Ident -> Type -> EnvState Register
+allocVar :: Ident -> Type -> EnvState String
 allocVar var type_ = do
-  (s:ss, _) <- get
-  reg <- getNextRegister
-  put (M.insert var (reg, type_) s : ss, reg)
-  return reg
+  (s:ss, fstore, oldReg) <- get
+  let reg = oldReg + 1
+  let reg' = "%i" ++ show reg
+  put (M.insert var (reg', type_) s : ss, fstore, reg)
+  return reg'
+
+saveFunType :: Ident -> Type -> EnvState ()
+saveFunType ident type_ = do
+  (stores, fstore, reg) <- get
+  put (stores, M.insert ident type_ fstore, reg)
+
+
+getFunType :: Ident -> EnvState Type
+getFunType ident = do
+  (_, fstore, _) <- get
+  case M.lookup ident fstore of
+    Just t  -> return t
+    Nothing -> return NoTypeDef
