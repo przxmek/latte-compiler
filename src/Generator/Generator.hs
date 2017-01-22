@@ -2,12 +2,16 @@ module Generator.Generator where
 
 import           Control.Monad         (liftM2)
 import           Data.List             (intercalate)
+import qualified Data.Map              as M
 
 import           AbsLatte
 import           Generator.Environment
 
 type Result = EnvState Code
 type ResultExpr = EnvState (Code, String, Type)
+
+type ArgMap = M.Map Ident Type
+
 
 todo :: Result
 todo = return "NotImplemented\n"
@@ -28,8 +32,19 @@ genStdLibDecl = return $
 
 
 genProgram :: Program -> Result
-genProgram (Program topdefs) = liftM2 (++) genStdLib (genTopDefs topdefs)
+genProgram (Program topdefs) = do
+  std <- genStdLib
+  saveTopDefs topdefs
+  code <- genTopDefs topdefs
+  return $ std ++ code
 
+
+saveTopDefs :: [TopDef] -> EnvState ()
+saveTopDefs = foldr ((>>) . saveTopDef) (return ())
+
+saveTopDef :: TopDef -> EnvState ()
+saveTopDef (TopDefFunc (FuncDef type_ ident _ _)) = saveFunType ident type_
+saveTopDef (TopDefClass _ _)                      = return () -- @TODO (extension - objects)
 
 genTopDefs :: [TopDef] -> Result
 genTopDefs = foldr (liftM2 (++) . genTopDef) (return [])
@@ -42,84 +57,89 @@ genTopDef (TopDefClass classhead membdecls) = genClassDef classhead membdecls
 genFuncDef :: FuncDef -> Result
 genFuncDef (FuncDef type_ ident@(Ident f) fargs block) = do
   saveFunType ident type_
-  code <- genStmt (SBlStmt block)
-  return $ "define " ++ typeToLLVM type_ ++ " @" ++ f ++ "() {\n"
+  code <- genStmt (argMap fargs) (SBlStmt block)
+  let args = argsToLLVM fargs
+  return $ "define " ++ typeToLLVM type_ ++ " @" ++ f ++ "(" ++ args ++ ") {\n"
     ++ code ++ "}\n\n"
+  where
+    argMap []                 = M.empty
+    argMap (FArg t i : args') = M.insert i t $ argMap args'
 
-
-genFArg :: FArg -> Result
-genFArg x = case x of
-  FArg type_ ident -> todo -- @TODO
+    argsToLLVM args' = intercalate ", " $ argsToLLVM' args'
+      where
+        argsToLLVM' [] = []
+        argsToLLVM' (FArg t (Ident x) : args'') =
+          (typeToLLVM t ++ " %" ++ x) : argsToLLVM' args''
 
 
 genClassDef :: ClassHead -> [MemberDecl] -> Result
-genClassDef classhead memberdecls = todo -- @TODO (objects)
+genClassDef _ _ = todo -- @TODO (objects)
 
 genClassHead :: ClassHead -> Result
 genClassHead x = case x of
-  ClassHeadDef ident              -> todo -- @TODO
-  ClassHeadExtDef ident classtype -> todo -- @TODO
+  ClassHeadDef _      -> todo -- @TODO (objects)
+  ClassHeadExtDef _ _ -> todo -- @TODO (objects)
 
 genMemberDecl :: MemberDecl -> Result
 genMemberDecl x = case x of
-  DeclField type_ idents -> todo -- @TODO
-  FuncField funcdef      -> todo -- @TODO
+  DeclField _ _ -> todo -- @TODO (objects)
+  FuncField _   -> todo -- @TODO (objects)
 
 
 
-genStmts :: [Stmt] -> Result
-genStmts = foldr (liftM2 (++) . genStmt) (return [])
+genStmts :: ArgMap -> [Stmt] -> Result
+genStmts args = foldr (liftM2 (++) . genStmt args) (return [])
 
-genStmt :: Stmt -> Result
-genStmt SEmpty = return []
-genStmt (SBlStmt (Block stmts)) = do
+genStmt :: ArgMap -> Stmt -> Result
+genStmt _ SEmpty = return []
+genStmt args (SBlStmt (Block stmts)) = do
   newScope
-  code <- genStmts stmts
+  code <- genStmts args stmts
   exitScope
   return code
-genStmt (SDecl type_ items) = genStmtDecl type_ items
-genStmt (SAss expr1 expr2) = case expr1 of
+genStmt args (SDecl type_ items) = genStmtDecl args type_ items
+genStmt args (SAss expr1 expr2) = case expr1 of
   EVar var -> do
     (reg, _) <- getVar var
-    (code, res, t) <- genExpr expr2
+    (code, res, t) <- genExpr args expr2
     let t' = typeToLLVM t
     return $ code
       ++ "store " ++ t' ++ " " ++ res ++ ", " ++ t' ++ "* " ++ reg ++ "\n"
   _        -> todo -- @TODO
-genStmt (SIncr expr) = case expr of
+genStmt _ (SIncr expr) = case expr of
   EVar var -> do
     (reg, t) <- getVar var
     return $ "add " ++ typeToLLVM t ++ "* " ++ reg ++ ", 1\n"
   _        -> todo -- @TODO
-genStmt (SDecr expr) = case expr of
+genStmt _ (SDecr expr) = case expr of
   EVar var -> do
     (reg, t) <- getVar var
     return $ "sub " ++ typeToLLVM t ++ "* " ++ reg ++ ", 1\n"
   _        -> todo -- @TODO
-genStmt (SRet expr) = do
-  (code, reg, t) <- genExpr expr
+genStmt args (SRet expr) = do
+  (code, reg, t) <- genExpr args expr
   return $ code ++ "ret " ++ typeToLLVM t ++ " " ++ reg ++ "\n"
-genStmt SVRet =
+genStmt _ SVRet =
   return "ret void\n"
-genStmt (SCond expr stmt)            = genStmt (SCondElse expr stmt SEmpty)
-genStmt (SCondElse expr stmt1 stmt2) = todo -- @TODO
-genStmt (SWhile expr stmt)           = todo -- @TODO
-genStmt (SFor type_ ident expr stmt) = todo -- @TODO (extension)
-genStmt (SExp expr) = do
-  (code, _, _) <- genExpr expr
+genStmt args (SCond expr stmt) = genStmt args (SCondElse expr stmt SEmpty)
+genStmt _ (SCondElse _ _ _) = todo -- @TODO
+genStmt _ (SWhile _ _)           = todo -- @TODO
+genStmt _ (SFor _ _ _ _) = todo -- @TODO (for loop)
+genStmt args (SExp expr) = do
+  (code, _, _) <- genExpr args expr
   return code
 
 
-genStmtDecl :: Type -> [Item] -> Result
-genStmtDecl _ [] = return []
-genStmtDecl type_ (item:items) = do
+genStmtDecl :: ArgMap -> Type -> [Item] -> Result
+genStmtDecl _ _ [] = return []
+genStmtDecl args type_ (item:items) = do
   code <- case item of
     NoInit var -> genVarAlloc var type_
     Init var expr -> do
       allocCode <- genVarAlloc var type_
-      initCode <- genStmt (SAss (EVar var) expr)
+      initCode <- genStmt args (SAss (EVar var) expr)
       return $ allocCode ++ initCode
-  rest <- genStmtDecl type_ items
+  rest <- genStmtDecl args type_ items
   return $ code ++ rest
 
 
@@ -131,79 +151,63 @@ genVarAlloc var type_ = do
 
 
 
-genExpr :: Expr -> ResultExpr
-genExpr (EVar var) = do
+genExpr :: ArgMap -> Expr -> ResultExpr
+genExpr args (EVar var) = do
   (reg, t) <- getVar var
-  nextReg <- getNextRegisterName
-  let t' = typeToLLVM t
-  return (nextReg ++ " = load " ++ t' ++ "* " ++ reg ++ "\n", nextReg, t)
-genExpr (ELitInt n) = return ("", show n, BaseTypeDef TInt)
-genExpr ELitTrue = return ("", "1", BaseTypeDef TBool)
-genExpr ELitFalse = return ("", "0", BaseTypeDef TBool)
-genExpr (EString string) = todoExpr -- @TODO
-genExpr (EClassNull classtype) = todoExpr -- @TODO (objects)
-genExpr (EApp expr exprs) = genEApp expr exprs
-genExpr (EArrSub expr1 expr2) = todoExpr -- @TODO (arrays)
-genExpr (EMember expr ident) = todoExpr -- @TODO (objects)
-genExpr (Neg expr) = genUnaryOp expr NegOp
-genExpr (Not expr) = genUnaryOp expr NotOp
-genExpr (EMul expr1 mulop expr2) = genBinaryOp expr1 expr2 (MulOp mulop)
-genExpr (EAdd expr1 addop expr2) = genBinaryOp expr1 expr2 (AddOp addop)
-genExpr (ERel expr1 relop expr2) = genBinaryOp expr1 expr2 (RelOp relop)
-genExpr (EAnd expr1 expr2) = genBinaryOp expr1 expr2 LogOp
-genExpr (EOr expr1 expr2) = genBinaryOp expr1 expr2 LogOp
-genExpr (ENewClass classtype) = todoExpr -- @TODO (objects)
-genExpr (ENewArray type_ expr) = todoExpr -- @TODO (arrays)
+  nreg <- getNextRegisterName
+  case t of
+    NoTypeDef -> case M.lookup var args of
+      Nothing -> return ([], [], NoTypeDef)
+      Just t' -> let Ident name = var in
+        return ("", "%" ++ name, t')
+    _ -> let t' = typeToLLVM t in
+      return (nreg ++ " = load " ++ t' ++ "* " ++ reg ++ "\n", nreg, t)
+genExpr _ (ELitInt n) = return ("", show n, BaseTypeDef TInt)
+genExpr _ ELitTrue = return ("", "1", BaseTypeDef TBool)
+genExpr _ ELitFalse = return ("", "0", BaseTypeDef TBool)
+genExpr _ (EString _) = todoExpr -- @TODO
+genExpr _ (EClassNull _) = todoExpr -- @TODO (objects)
+genExpr args (EApp expr exprs) = genEApp args expr exprs
+genExpr _ (EArrSub _ _) = todoExpr -- @TODO (arrays)
+genExpr _ (EMember _ _) = todoExpr -- @TODO (objects)
+genExpr args (Neg expr) = genUnaryOp args expr NegOp
+genExpr args (Not expr) = genUnaryOp args expr NotOp
+genExpr args (EMul expr1 mulop expr2) = genBinaryOp args expr1 expr2 (MulOp mulop)
+genExpr args (EAdd expr1 addop expr2) = genBinaryOp args expr1 expr2 (AddOp addop)
+genExpr args (ERel expr1 relop expr2) = genBinaryOp args expr1 expr2 (RelOp relop)
+genExpr args (EAnd expr1 expr2) = genBinaryOp args expr1 expr2 LogOp
+genExpr args (EOr expr1 expr2) = genBinaryOp args expr1 expr2 LogOp
+genExpr _ (ENewClass _) = todoExpr -- @TODO (objects)
+genExpr _ (ENewArray _ _) = todoExpr -- @TODO (arrays)
 
 
-genEApp :: Expr -> [Expr] -> ResultExpr
-genEApp (EVar ident) exprs = do
-  (args, argsCode) <- genArgs exprs
+genEApp :: ArgMap -> Expr -> [Expr] -> ResultExpr
+genEApp args (EVar ident) exprs = do
+  (args', argsCode) <- genArgs exprs
   retType <- getFunType ident
   reg <- getNextRegisterName
   let Ident fname = ident
-      prepArgs = intercalate ", " args
+      prepArgs = intercalate ", " args'
   let callCode = reg ++ " = call " ++ typeToLLVM retType ++ " @" ++ fname
                  ++ "(" ++ prepArgs ++ ")\n"
   return (argsCode ++ callCode, reg, retType)
   where
     genArgs []           = return ([], [])
     genArgs (expr:args') = do
-      (code, res, t) <- genExpr expr
+      (code, res, t) <- genExpr args expr
       (a, c) <- genArgs args'
       return ((typeToLLVM t ++ " " ++ res) : a, code ++ c)
+genEApp _ _ _ = todoExpr -- @TODO
 
-genEApp _ _                = todoExpr -- @TODO
 
+genUnaryOp :: ArgMap -> Expr -> UnaryOp -> ResultExpr
+genUnaryOp _ _ _ = todoExpr -- @TODO
 
-genAddOp :: AddOp -> ResultExpr
-genAddOp x = case x of
-  OpPlus  -> todoExpr -- @TODO
-  OpMinus -> todoExpr -- @TODO
-
-genMulOp :: MulOp -> ResultExpr
-genMulOp x = case x of
-  OpTimes -> todoExpr -- @TODO
-  OpDiv   -> todoExpr -- @TODO
-  OpMod   -> todoExpr -- @TODO
-
-genRelOp :: RelOp -> ResultExpr
-genRelOp x = case x of
-  OpLTH -> todoExpr -- @TODO
-  OpLE  -> todoExpr -- @TODO
-  OpGTH -> todoExpr -- @TODO
-  OpGE  -> todoExpr -- @TODO
-  OpEQU -> todoExpr -- @TODO
-  OpNE  -> todoExpr -- @TODO
-
-genUnaryOp :: Expr -> UnaryOp -> ResultExpr
-genUnaryOp expr op = todoExpr -- @TODO
-
-genBinaryOp :: Expr -> Expr -> BinOp -> ResultExpr
-genBinaryOp _ _ (RelOp _) = todoExpr -- @TODO
-genBinaryOp expr1 expr2 op = do
-  (lhsCode, res1, t1) <- genExpr expr1
-  (rhsCode, res2, t2) <- genExpr expr2
+genBinaryOp :: ArgMap -> Expr -> Expr -> BinOp -> ResultExpr
+genBinaryOp _ _ _ (RelOp _) = todoExpr -- @TODO
+genBinaryOp args expr1 expr2 op = do
+  (lhsCode, res1, t1) <- genExpr args expr1
+  (rhsCode, res2, _) <- genExpr args expr2
   reg <- getNextRegisterName
   case t1 of
     BaseTypeDef TInt ->
