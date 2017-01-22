@@ -23,7 +23,12 @@ genProgram (Program topdefs) = genTopDefs topdefs
 
 
 genTopDefs :: [TopDef] -> Result
-genTopDefs = foldr ((>>) . genTopDef) (return [])
+-- genTopDefs = foldr ((>>) . genTopDef) (return [])
+genTopDefs [] = return []
+genTopDefs (def:defs) = do
+  code <- genTopDef def
+  rest <- genTopDefs defs
+  return $ code ++ rest
 
 genTopDef :: TopDef -> Result
 genTopDef (TopDefFunc funcdef)              = genFuncDef funcdef
@@ -58,7 +63,12 @@ genMemberDecl x = case x of
 
 
 genStmts :: [Stmt] -> Result
-genStmts = foldr ((>>) . genStmt) (return [])
+-- genStmts = foldr ((>>) . genStmt) (return [])
+genStmts [] = return []
+genStmts (stmt:stmts) = do
+  code <- genStmt stmt
+  rest <- genStmts stmts
+  return $ code ++ rest
 
 
 genStmt :: Stmt -> Result
