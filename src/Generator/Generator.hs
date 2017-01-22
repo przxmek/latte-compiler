@@ -78,7 +78,7 @@ genFuncDef (FuncDef type_ ident@(Ident f) fargs block) = do
   code <- genStmt (argMap fargs) (SBlStmt block)
   let args = argsToLLVM fargs
       t' = typeToLLVM type_
-  return $ printf "define %s @%s(%s) {\n%s%s}\n\n" t' f args code ret
+  return $ printf "define %s @%s(%s) {\n%s%s}\n\n" t' f args code (ret code)
   where
     argMap []                 = M.empty
     argMap (FArg t i : args') = M.insert i t $ argMap args'
@@ -89,13 +89,12 @@ genFuncDef (FuncDef type_ ident@(Ident f) fargs block) = do
         argsToLLVM' (FArg t (Ident x) : args'') =
           (typeToLLVM t ++ " %" ++ x) : argsToLLVM' args''
 
-    ret = let Block stmts = block in
-      case last stmts of
-        SRet _ -> ""
-        SVRet  -> ""
-        _      -> case type_ of
-          BaseTypeDef TVoid -> "  ret void\n"
-          _                 -> printf "  ret %s 0\n" $ typeToLLVM type_
+    -- @TODO change this code
+    ret c = case (last. init) (":D" ++ c) of
+      ':' -> case type_ of
+        BaseTypeDef TVoid -> "  ret void\n"
+        _ -> printf "  ret %s 0\n" $ typeToLLVM type_
+      _ -> ""
 
 
 genClassDef :: ClassHead -> [MemberDecl] -> Result
@@ -177,19 +176,19 @@ genStmt args (SExp expr) = do
 genStmtDecl :: ArgMap -> Type -> [Item] -> Result
 genStmtDecl _ _ [] = return []
 genStmtDecl args type_ (item:items) = do
+  let t' = typeToLLVM type_
+      allocCode = printf "  %s = alloca %s\n"
   code <- case item of
-    NoInit var -> genVarAlloc var
+    NoInit var -> do
+      res <- allocVar var type_
+      return $ allocCode res t'
     Init var expr -> do
-      allocCode <- genVarAlloc var
-      initCode <- genStmt args (SAss (EVar var) expr)
-      return $ allocCode ++ initCode
+      res <- allocVar var type_
+      (exprCode, reg, _) <- genExpr args expr
+      let initCode = printf "  store %s %s, %s* %s\n" t' reg t' res
+      return $ exprCode ++ allocCode res t' ++ initCode
   rest <- genStmtDecl args type_ items
   return $ code ++ rest
-  where
-    genVarAlloc var' = do
-      reg <- allocVar var' type_
-      let t' = typeToLLVM type_
-      return $ printf "  %s = alloca %s\n" reg t'
 
 
 
@@ -287,8 +286,8 @@ genEAndOr args andor expr1 expr2 = do
         ++ toLLVMLabel l2 ++ c2 ++ toLLVMCondJump r2 lTrue lFalse
         ++ toLLVMLabel lTrue ++ toLLVMJump lEnd
         ++ toLLVMLabel lFalse ++ toLLVMJump lEnd
-        ++ toLLVMLabel lEnd ++ reg
-        ++ printf "  phi i1 [ 1, %%%s ], [ 0, %%%s ]\n" lTrue lFalse
+        ++ toLLVMLabel lEnd
+        ++ printf "  %s = phi i1 [ 1, %%%s ], [ 0, %%%s ]\n" reg lTrue lFalse
   return (code, reg, BaseTypeDef TBool)
 
 
