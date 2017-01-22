@@ -60,7 +60,7 @@ saveTopDefs = foldr ((>>) . saveTopDef) (return ())
 
 saveTopDef :: TopDef -> EnvState ()
 saveTopDef (TopDefFunc (FuncDef type_ ident _ _)) = saveFunType ident type_
-saveTopDef (TopDefClass _ _)                      = return () -- @TODO (extension - objects)
+saveTopDef (TopDefClass _ _)                      = return () -- @TODO (objects)
 
 genTopDefs :: [TopDef] -> Result
 genTopDefs = foldr (liftM2 (++) . genTopDef) (return [])
@@ -289,13 +289,26 @@ genEAndOr args andor expr1 expr2 = do
 
 
 genBinaryOp :: ArgMap -> Expr -> Expr -> BinOp -> ResultExpr
-genBinaryOp _ _ _ (RelOp _) = todoExpr -- @TODO
 genBinaryOp args expr1 expr2 op = do
   (lhsCode, res1, t1) <- genExpr args expr1
   (rhsCode, res2, _) <- genExpr args expr2
   reg <- getNewRegisterName
   case t1 of
-    BaseTypeDef TStr -> todoExpr -- @TODO
+    BaseTypeDef TStr -> case op of
+      AddOp OpPlus ->
+        let code = lhsCode ++ rhsCode ++ llvmConcatStr reg res1 res2 in
+          return (code, reg, t1)
+      _ -> do
+        subReg <- getNewRegisterName
+        let cmpStr = llvmStrCmp subReg res1 res2
+            eqStr = (if op == RelOp OpEQU then llvmEq else llvmNe) reg subReg
+            code = lhsCode ++ rhsCode ++ cmpStr ++ eqStr
+        return (code, reg, t1)
+      where
+        llvmConcatStr = printf "  %s = call i8* @concat(i8* %s, i8* %s)\n"
+        llvmStrCmp = printf "  %s = call i32 @strcmp(i8* %s, i8* %s)\n"
+        llvmEq = printf "  %s = icmp eq i32 %s, 0\n"
+        llvmNe = printf "  %s = icmp ne i32 %s, 0\n"
     _ -> do
       let t' = typeToLLVM t1
           opLLVM = opToLLVM (BinOp op)

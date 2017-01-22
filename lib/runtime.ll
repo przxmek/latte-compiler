@@ -3,9 +3,15 @@
 @d   = internal constant [3 x i8] c"%d\00"
 @lf  = internal constant [4 x i8] c"%lf\00"
 
+
 declare i32 @printf(i8*, ...)
 declare i32 @scanf(i8*, ...)
 declare i32 @puts(i8*)
+declare i8* @malloc(i32)
+declare i8* @strcat(i8*, i8*)
+declare i8* @strcpy(i8*, i8*)
+declare i32 @strlen(i8*)
+
 
 define void @printInt(i32 %x) {
 entry: %t0 = getelementptr [4 x i8], [4 x i8]* @dnl, i32 0, i32 0
@@ -38,4 +44,15 @@ entry:	%res = alloca double
 	call i32 (i8*, ...) @scanf(i8* %t1, double* %res)
 	%t2 = load double, double* %res
 	ret double %t2
+}
+
+define i8* @concat(i8* %a, i8* %b) {
+	%t1 = call i32 @strlen(i8* %a)
+	%t2 = call i32 @strlen(i8* %b)
+	%t3 = add i32 %t1, %t2
+	%t4 = add i32 %t3, 1
+	%t5 = call i8* @malloc(i32 %t4)
+	call i8* @strcpy(i8* %t5, i8* %a)
+	call i8* @strcat(i8* %t5, i8* %b)
+	ret i8* %t5
 }
