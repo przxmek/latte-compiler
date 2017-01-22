@@ -170,13 +170,19 @@ genExpr _ (EClassNull _) = todoExpr -- @TODO (objects)
 genExpr args (EApp expr exprs) = genEApp args expr exprs
 genExpr _ (EArrSub _ _) = todoExpr -- @TODO (arrays)
 genExpr _ (EMember _ _) = todoExpr -- @TODO (objects)
-genExpr args (Neg expr) = genUnaryOp args expr NegOp
+genExpr args (Neg expr) = do
+  (code, res, t) <- genExpr args expr
+  case expr of
+    ELitInt _ -> return ("", '-':res, t)
+    _ -> do
+      reg <- getNextRegisterName
+      return (code ++ reg ++ " = mul i32 " ++ res ++ ", -1\n", reg, t)
 genExpr args (Not expr) = genUnaryOp args expr NotOp
 genExpr args (EMul expr1 mulop expr2) = genBinaryOp args expr1 expr2 (MulOp mulop)
 genExpr args (EAdd expr1 addop expr2) = genBinaryOp args expr1 expr2 (AddOp addop)
 genExpr args (ERel expr1 relop expr2) = genBinaryOp args expr1 expr2 (RelOp relop)
-genExpr args (EAnd expr1 expr2) = genBinaryOp args expr1 expr2 LogOp
-genExpr args (EOr expr1 expr2) = genBinaryOp args expr1 expr2 LogOp
+genExpr args (EAnd expr1 expr2) = genBinaryOp args expr1 expr2 LogOp -- @TODO
+genExpr args (EOr expr1 expr2) = genBinaryOp args expr1 expr2 LogOp -- @TODO
 genExpr _ (ENewClass _) = todoExpr -- @TODO (objects)
 genExpr _ (ENewArray _ _) = todoExpr -- @TODO (arrays)
 
