@@ -1,6 +1,7 @@
 module Generator.Generator where
 
 import           Control.Monad         (liftM2)
+import           Data.Char             (isAlphaNum, ord)
 import           Data.List             (intercalate)
 import qualified Data.Map              as M
 import           Text.Printf           (printf)
@@ -214,11 +215,16 @@ genExpr _ (EString str) = do
   res <- getNewRegisterName
   let strName = "@str" ++ show strReg
       strLen = (toInteger . length) str
-  newString $ llvmStrDef strName (length str + 1) str
+  newString $ llvmStrDef strName (length str + 1) (toASCII str)
   return (llvmStrBitcast res (strLen + 1) strName, res, BaseTypeDef TStr)
   where
     llvmStrDef = printf "%s = internal constant [%d x i8] c\"%s\\00\"\n"
     llvmStrBitcast = printf "  %s = bitcast [%d x i8]* %s to i8*\n"
+
+    toASCII [] = []
+    toASCII (c:cc) = (if isAlphaNum c
+      then [c]
+      else printf "\\%02X" (ord c)) ++ cc
 
 genExpr _ (EClassNull _) = todoExpr -- @TODO (objects)
 genExpr args (EApp expr exprs) = genEApp args expr exprs
