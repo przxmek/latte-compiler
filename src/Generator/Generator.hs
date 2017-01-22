@@ -63,7 +63,7 @@ genFuncDef (FuncDef type_ ident@(Ident f) fargs block) = do
   code <- genStmt (argMap fargs) (SBlStmt block)
   let args = argsToLLVM fargs
       t' = typeToLLVM type_
-  return $ printf "define %s @%s(%s) {\n%s}\n\n" t' f args code
+  return $ printf "define %s @%s(%s) {\n%s%s}\n\n" t' f args code ret
   where
     argMap []                 = M.empty
     argMap (FArg t i : args') = M.insert i t $ argMap args'
@@ -73,6 +73,14 @@ genFuncDef (FuncDef type_ ident@(Ident f) fargs block) = do
         argsToLLVM' [] = []
         argsToLLVM' (FArg t (Ident x) : args'') =
           (typeToLLVM t ++ " %" ++ x) : argsToLLVM' args''
+
+    ret = let Block stmts = block in
+      case last stmts of
+        SRet _ -> ""
+        SVRet  -> ""
+        _      -> case type_ of
+          BaseTypeDef TVoid -> "ret void\n"
+          _                 -> printf "ret %s 0\n" $ typeToLLVM type_
 
 
 genClassDef :: ClassHead -> [MemberDecl] -> Result
@@ -121,7 +129,10 @@ genStmt args (SRet expr) = do
 genStmt _ SVRet =
   return "ret void\n"
 genStmt args (SCond expr stmt) = genStmt args (SCondElse expr stmt SEmpty)
-genStmt args (SCondElse expr stmt1 stmt2) = do
+genStmt args (SCondElse expr stmt1 stmt2) = case expr of
+  ELitTrue  -> genStmt args stmt1
+  ELitFalse -> genStmt args stmt2
+  _ -> do
   (condCode, reg, _) <- genExpr args expr
   lTrue <- getNewLabel -- if true label
   lFalse <- getNewLabel -- if false label
