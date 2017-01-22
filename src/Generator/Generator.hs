@@ -33,7 +33,9 @@ genStdLib = do
 
 genStdLibDecl :: Result
 genStdLibDecl = return
-  "declare void @printInt(i32)\n\
+  "declare i8* @concat(i8*, i8*)\
+  \declare i32 @strcmp(i8*, i8*)\
+  \declare void @printInt(i32)\n\
   \declare void @printString(i8*)\n\
   \declare i32 @readInt()\n\
   \declare i8* @readString()\n\n\n"
@@ -203,7 +205,7 @@ genExpr args (EVar var) = do
         return ("", "%" ++ name, t')
     _ ->
       let t' = typeToLLVM t
-          code = printf "  %s = load %s* %s\n" nreg t' reg in
+          code = printf "  %s = load %s, %s* %s\n" nreg t' t' reg in
       return (code, nreg, t)
 genExpr _ (ELitInt n) = return ("", show n, BaseTypeDef TInt)
 genExpr _ ELitTrue = return ("", "1", BaseTypeDef TBool)
@@ -256,7 +258,9 @@ genEApp args (EVar ident) exprs = do
   let Ident fname = ident
       prepArgs = intercalate ", " args'
       t' = typeToLLVM retType
-      callCode = printf "  %s = call %s @%s(%s)\n" reg t' fname prepArgs
+      callCode = if retType /= BaseTypeDef TVoid
+        then printf "  %s = call %s @%s(%s)\n" reg t' fname prepArgs
+        else printf "  call %s @%s(%s)\n" t' fname prepArgs
   return (argsCode ++ callCode, reg, retType)
   where
     genArgs []           = return ([], [])
@@ -328,7 +332,7 @@ opToLLVM (BinOp op) = case op of
   MulOp OpTimes -> "mul"
   MulOp OpDiv   -> "sdiv"
   MulOp OpMod   -> "srem"
-  RelOp relOp   -> "icmp" ++ case relOp of
+  RelOp relOp   -> "icmp " ++ case relOp of
     OpLTH -> "slt"
     OpLE  -> "sle"
     OpGTH -> "sgt"
