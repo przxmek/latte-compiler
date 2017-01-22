@@ -3,6 +3,7 @@ module Generator.Generator where
 import           Control.Monad         (liftM2)
 import           Data.List             (intercalate)
 import qualified Data.Map              as M
+import           Text.Printf           (printf)
 
 import           AbsLatte
 import           Generator.Environment
@@ -120,17 +121,25 @@ genStmt _ SVRet =
 genStmt args (SCond expr stmt) = genStmt args (SCondElse expr stmt SEmpty)
 genStmt args (SCondElse expr stmt1 stmt2) = do
   (condCode, reg, _) <- genExpr args expr
-  lT <- getNewLabel -- if true label
-  lF <- getNewLabel -- if false label
-  lE <- getNewLabel -- end label
-  sT <- genStmt args stmt1 -- if true stmt
-  sF <- genStmt args stmt2 -- if false stmt
-  return $ condCode
-    ++ "br i1 " ++ reg ++ ", label %" ++ lT ++ ", label %" ++ lF ++ "\n"
-    ++ lT ++ ":\n" ++ sT ++ "br label %" ++ lE ++ "\n"
-    ++ lF ++ ":\n" ++ sF ++ "br label %" ++ lE ++ "\n"
-    ++ lE ++ ":\n"
-genStmt _ (SWhile _ _)           = todo -- @TODO
+  lTrue <- getNewLabel -- if true label
+  lFalse <- getNewLabel -- if false label
+  lEnd <- getNewLabel -- end label
+  sTrue <- genStmt args stmt1 -- if true stmt
+  sFalse <- genStmt args stmt2 -- if false stmt
+  return $ condCode ++ toLLVMCondJump reg lTrue lFalse
+    ++ toLLVMLabel lTrue ++ sTrue ++ toLLVMJump lEnd
+    ++ toLLVMLabel lFalse ++ sFalse ++ toLLVMJump lEnd
+    ++ toLLVMLabel lEnd
+genStmt args (SWhile expr stmt) = do
+  (condCode, reg, _) <- genExpr args expr
+  loopCode <- genStmt args stmt
+  lCond <- getNewLabel
+  lLoop <- getNewLabel
+  lEnd <- getNewLabel
+  return $ toLLVMJump lCond
+    ++ toLLVMLabel lCond ++ condCode ++ toLLVMCondJump reg lLoop lEnd
+    ++ toLLVMLabel lLoop ++ loopCode ++ toLLVMJump lCond
+    ++ toLLVMLabel lEnd
 genStmt _ (SFor _ _ _ _) = todo -- @TODO (for loop)
 genStmt args (SExp expr) = do
   (code, _, _) <- genExpr args expr
@@ -197,20 +206,33 @@ genExpr args (ERel expr1 relop expr2) = genBinaryOp args expr1 expr2 (RelOp relo
 genExpr args (EAnd expr1 expr2) = do
   (c1, r1, _) <- genExpr args expr1
   (c2, r2, _) <- genExpr args expr2
-  lsec <- getNewLabel
-  ltrue <- getNewLabel
-  lfalse <- getNewLabel
-  lend <- getNewLabel
+  l2 <- getNewLabel
+  lTrue <- getNewLabel
+  lFalse <- getNewLabel
+  lEnd <- getNewLabel
   reg <- getNewRegisterName
-  let code = c1 ++ "br i1 " ++ r1 ++ ", label %" ++ lsec ++ ", label %" ++ lfalse ++ "\n"
-        ++ lsec ++ ":\n" ++ c2 ++ "br i1 " ++ r2 ++ ", label %" ++ ltrue ++ ", label %" ++ lfalse ++ "\n"
-        ++ ltrue ++ ":\nbr label %" ++ lend ++ "\n"
-        ++ lfalse ++ ":\nbr label %" ++ lend ++ "\n"
-        ++ lend ++ ":\n"
-        ++ reg ++ " = phi i1 [ 1, %" ++ ltrue ++ " ], [ 0, %" ++ lfalse ++ "]\n"
+  let code = c1 ++ toLLVMCondJump r1 l2 lFalse
+        ++ toLLVMLabel l2 ++ c2 ++ toLLVMCondJump r2 lTrue lFalse
+        ++ toLLVMLabel lTrue ++ toLLVMJump lEnd
+        ++ toLLVMLabel lFalse ++ toLLVMJump lEnd
+        ++ toLLVMLabel lEnd ++ reg
+        ++ printf "phi i1 [ 1, %%%s ], [ 0, %%%s ]\n" lTrue lFalse
   return (code, reg, BaseTypeDef TBool)
-
-genExpr args (EOr expr1 expr2) = genBinaryOp args expr1 expr2 LogOp -- @TODO
+genExpr args (EOr expr1 expr2) = do
+  (c1, r1, _) <- genExpr args expr1
+  (c2, r2, _) <- genExpr args expr2
+  l2 <- getNewLabel
+  lTrue <- getNewLabel
+  lFalse <- getNewLabel
+  lEnd <- getNewLabel
+  reg <- getNewRegisterName
+  let code = c1 ++ toLLVMCondJump r1 lTrue l2
+        ++ toLLVMLabel l2 ++ c2 ++ toLLVMCondJump r2 lTrue lFalse
+        ++ toLLVMLabel lTrue ++ toLLVMJump lEnd
+        ++ toLLVMLabel lFalse ++ toLLVMJump lEnd
+        ++ toLLVMLabel lEnd ++ reg
+        ++ printf "phi i1 [ 1, %%%s ], [ 0, %%%s ]\n" lTrue lFalse
+  return (code, reg, BaseTypeDef TBool)
 genExpr _ (ENewClass _) = todoExpr -- @TODO (objects)
 genExpr _ (ENewArray _ _) = todoExpr -- @TODO (arrays)
 
@@ -248,8 +270,7 @@ genBinaryOp args expr1 expr2 op = do
     _ -> do
       let t' = typeToLLVM t1
           opLLVM = opToLLVM (BinOp op)
-          opCode = reg ++ " = " ++ opLLVM ++ " " ++ t' ++ " " ++ res1 ++ ", "
-                 ++ res2 ++ "\n"
+          opCode = printf "%s = %s %s %s, %s\n" reg opLLVM t' res1 res2
           resultType = case op of
             RelOp _ -> BaseTypeDef TBool
             _       -> t1
@@ -280,6 +301,16 @@ typeToLLVM (BaseTypeDef TVoid) = "void"
 typeToLLVM (BaseTypeDef TBool) = "i1"
 typeToLLVM (BaseTypeDef TInt)  = "i32"
 typeToLLVM _                   = notImplemented
+
+
+toLLVMLabel :: String -> String
+toLLVMLabel = printf "%s:\n"
+
+toLLVMCondJump :: String -> String -> String -> String
+toLLVMCondJump = printf "br i1 %s, label %%%s, label %%%s\n"
+
+toLLVMJump :: String -> String
+toLLVMJump = printf "br label %%%s\n"
 
 
 notImplemented :: String
