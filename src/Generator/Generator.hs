@@ -198,7 +198,22 @@ genExpr args (Not expr) = case expr of
 genExpr args (EMul expr1 mulop expr2) = genBinaryOp args expr1 expr2 (MulOp mulop)
 genExpr args (EAdd expr1 addop expr2) = genBinaryOp args expr1 expr2 (AddOp addop)
 genExpr args (ERel expr1 relop expr2) = genBinaryOp args expr1 expr2 (RelOp relop)
-genExpr args (EAnd expr1 expr2) = genBinaryOp args expr1 expr2 LogOp -- @TODO
+genExpr args (EAnd expr1 expr2) = do
+  (c1, r1, _) <- genExpr args expr1
+  (c2, r2, _) <- genExpr args expr2
+  lsec <- getNewLabel
+  ltrue <- getNewLabel
+  lfalse <- getNewLabel
+  lend <- getNewLabel
+  reg <- getNewRegisterName
+  let code = c1 ++ "br i1 " ++ r1 ++ ", label %" ++ lsec ++ ", label %" ++ lfalse ++ "\n"
+        ++ lsec ++ ":\n" ++ c2 ++ "br i1 " ++ r2 ++ ", label %" ++ ltrue ++ ", label %" ++ lfalse ++ "\n"
+        ++ ltrue ++ ":\nbr label %" ++ lend ++ "\n"
+        ++ lfalse ++ ":\nbr label %" ++ lend ++ "\n"
+        ++ lend ++ ":\n"
+        ++ reg ++ " = phi i1 [ 1, %" ++ ltrue ++ " ], [ 0, %" ++ lfalse ++ "]\n"
+  return (code, reg, BaseTypeDef TBool)
+
 genExpr args (EOr expr1 expr2) = genBinaryOp args expr1 expr2 LogOp -- @TODO
 genExpr _ (ENewClass _) = todoExpr -- @TODO (objects)
 genExpr _ (ENewArray _ _) = todoExpr -- @TODO (arrays)
