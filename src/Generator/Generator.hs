@@ -62,8 +62,8 @@ genFuncDef (FuncDef type_ ident@(Ident f) fargs block) = do
   saveFunType ident type_
   code <- genStmt (argMap fargs) (SBlStmt block)
   let args = argsToLLVM fargs
-  return $ "define " ++ typeToLLVM type_ ++ " @" ++ f ++ "(" ++ args ++ ") {\n"
-    ++ code ++ "}\n\n"
+      t' = typeToLLVM type_
+  return $ printf "define %s @%s(%s) {\n%s}\n\n" t' f args code
   where
     argMap []                 = M.empty
     argMap (FArg t i : args') = M.insert i t $ argMap args'
@@ -106,8 +106,7 @@ genStmt args (SAss expr1 expr2) = case expr1 of
     (reg, _) <- getVar var
     (code, res, t) <- genExpr args expr2
     let t' = typeToLLVM t
-    return $ code
-      ++ "store " ++ t' ++ " " ++ res ++ ", " ++ t' ++ "* " ++ reg ++ "\n"
+    return $ code ++ printf "store %s %s, %s* %s\n" t' res t' reg
   _ -> todo -- @TODO
 genStmt args (SIncr expr) = case expr of
   EVar _ -> genStmt args $ SAss expr $ EAdd expr OpPlus $ ELitInt 1
@@ -117,7 +116,8 @@ genStmt args (SDecr expr) = case expr of
   _      -> todo -- @TODO (extension)
 genStmt args (SRet expr) = do
   (code, reg, t) <- genExpr args expr
-  return $ code ++ "ret " ++ typeToLLVM t ++ " " ++ reg ++ "\n"
+  let t' = typeToLLVM t
+  return $ code ++ printf "ret %s %s\n" t' reg
 genStmt _ SVRet =
   return "ret void\n"
 genStmt args (SCond expr stmt) = genStmt args (SCondElse expr stmt SEmpty)
@@ -218,8 +218,8 @@ genEApp args (EVar ident) exprs = do
   reg <- getNewRegisterName
   let Ident fname = ident
       prepArgs = intercalate ", " args'
-  let callCode = reg ++ " = call " ++ typeToLLVM retType ++ " @" ++ fname
-                 ++ "(" ++ prepArgs ++ ")\n"
+      t' = typeToLLVM retType
+      callCode = printf "%s = call %s @%s(%s)\n" reg t' fname prepArgs
   return (argsCode ++ callCode, reg, retType)
   where
     genArgs []           = return ([], [])
