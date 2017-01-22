@@ -312,7 +312,7 @@ genBinaryOp args expr1 expr2 op = do
         let cmpStr = llvmStrCmp subReg res1 res2
             eqStr = (if op == RelOp OpEQU then llvmEq else llvmNe) reg subReg
             code = lhsCode ++ rhsCode ++ cmpStr ++ eqStr
-        return (code, reg, t1)
+        return (code, reg, BaseTypeDef TBool)
       where
         llvmConcatStr = printf "  %s = call i8* @concat(i8* %s, i8* %s)\n"
         llvmStrCmp = printf "  %s = call i32 @strcmp(i8* %s, i8* %s)\n"
