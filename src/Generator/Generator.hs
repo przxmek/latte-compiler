@@ -177,7 +177,13 @@ genExpr args (Neg expr) = do
     _ -> do
       reg <- getNextRegisterName
       return (code ++ reg ++ " = mul i32 " ++ res ++ ", -1\n", reg, t)
-genExpr args (Not expr) = genUnaryOp args expr NotOp
+genExpr args (Not expr) = case expr of
+  ELitTrue  -> return ("", "false", BaseTypeDef TBool)
+  ELitFalse -> return ("", "true", BaseTypeDef TBool)
+  _         -> do
+    (code, res, t) <- genExpr args expr
+    reg <- getNextRegisterName
+    return (code ++ reg ++ " = cor i1 " ++ res ++ ", 1\n", reg, t)
 genExpr args (EMul expr1 mulop expr2) = genBinaryOp args expr1 expr2 (MulOp mulop)
 genExpr args (EAdd expr1 addop expr2) = genBinaryOp args expr1 expr2 (AddOp addop)
 genExpr args (ERel expr1 relop expr2) = genBinaryOp args expr1 expr2 (RelOp relop)
@@ -231,6 +237,7 @@ opToLLVM (BinOp op) = case op of
   AddOp OpMinus -> "sub"
   MulOp OpTimes -> "mul"
   MulOp OpDiv   -> "sdiv"
+  MulOp OpMod   -> "srem"
   _             -> notImplemented
 
 
