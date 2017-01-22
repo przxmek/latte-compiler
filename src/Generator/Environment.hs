@@ -7,48 +7,57 @@ import           AbsLatte
 
 
 type Register = Integer
+type LabelNumber = Integer
 type Code = String
 type Var = (String, Type)
 
 type Store = M.Map Ident Var
 type FunStore = M.Map Ident Type
 
-type Environment = ([Store], FunStore, Register)
+type Environment = ([Store], FunStore, Register, LabelNumber)
 
 type EnvState a = State Environment a
 
 
 initEnv :: Environment
-initEnv = ([M.empty], M.empty, 0)
+initEnv = ([M.empty], M.empty, 0, 0)
 
 
 newScope :: EnvState ()
 newScope = do
-  (stores, fstore, reg) <- get
-  put (M.empty : stores, fstore, reg)
+  (ss, fs, r, l) <- get
+  put (M.empty : ss, fs, r, l)
 
 exitScope :: EnvState ()
 exitScope = do
-  (_:stores, fstore, reg) <- get
-  put (stores, fstore, reg)
+  (_:ss, fs, r, l) <- get
+  put (ss, fs, r, l)
 
 
-getNextRegister :: EnvState Register
-getNextRegister = do
-  (stores, fstore, reg) <- get
-  let nextReg = reg + 1
-  put (stores, fstore, nextReg)
+getNewRegister :: EnvState Register
+getNewRegister = do
+  (ss, fs, r, l) <- get
+  let nextReg = r + 1
+  put (ss, fs, nextReg, l)
   return nextReg
 
-getNextRegisterName :: EnvState String
-getNextRegisterName = do
-  reg <- getNextRegister
+getNewRegisterName :: EnvState String
+getNewRegisterName = do
+  reg <- getNewRegister
   return $ "%i" ++ show reg
+
+getNewLabel :: EnvState String
+getNewLabel = do
+  (ss, fs, r, l) <- get
+  let nextLabel = l + 1
+  put (ss, fs, r, nextLabel)
+  return $ "LABEL" ++ show nextLabel
+
 
 getVar :: Ident -> EnvState Var
 getVar var = do
-  (stores, _, _) <- get
-  lookupStores stores where
+  (ss, _, _, _) <- get
+  lookupStores ss where
     lookupStores stores = case stores of
       [] -> return ("Var not found", NoTypeDef)
       s:ss' -> case M.lookup var s of
@@ -57,21 +66,21 @@ getVar var = do
 
 allocVar :: Ident -> Type -> EnvState String
 allocVar var type_ = do
-  (s:ss, fstore, oldReg) <- get
+  (s:ss, fs, oldReg, l) <- get
   let reg = oldReg + 1
   let reg' = "%i" ++ show reg
-  put (M.insert var (reg', type_) s : ss, fstore, reg)
+  put (M.insert var (reg', type_) s : ss, fs, reg, l)
   return reg'
 
 saveFunType :: Ident -> Type -> EnvState ()
 saveFunType ident type_ = do
-  (stores, fstore, reg) <- get
-  put (stores, M.insert ident type_ fstore, reg)
+  (ss, fs, r, l) <- get
+  put (ss, M.insert ident type_ fs, r, l)
 
 
 getFunType :: Ident -> EnvState Type
 getFunType ident = do
-  (_, fstore, _) <- get
-  case M.lookup ident fstore of
+  (_, fs, _, _) <- get
+  case M.lookup ident fs of
     Just t  -> return t
     Nothing -> return NoTypeDef

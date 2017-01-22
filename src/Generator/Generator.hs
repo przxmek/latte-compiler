@@ -122,7 +122,18 @@ genStmt args (SRet expr) = do
 genStmt _ SVRet =
   return "ret void\n"
 genStmt args (SCond expr stmt) = genStmt args (SCondElse expr stmt SEmpty)
-genStmt _ (SCondElse _ _ _) = todo -- @TODO
+genStmt args (SCondElse expr stmt1 stmt2) = do
+  (condCode, reg, _) <- genExpr args expr
+  lT <- getNewLabel -- if true label
+  lF <- getNewLabel -- if false label
+  lE <- getNewLabel -- end label
+  sT <- genStmt args stmt1 -- if true stmt
+  sF <- genStmt args stmt2 -- if false stmt
+  return $ condCode
+    ++ "br i1 " ++ reg ++ ", label %" ++ lT ++ ", label %" ++ lF ++ "\n"
+    ++ lT ++ ":\n" ++ sT ++ "br label %" ++ lE ++ "\n"
+    ++ lF ++ ":\n" ++ sF ++ "br label %" ++ lE ++ "\n"
+    ++ lE ++ ":\n"
 genStmt _ (SWhile _ _)           = todo -- @TODO
 genStmt _ (SFor _ _ _ _) = todo -- @TODO (for loop)
 genStmt args (SExp expr) = do
@@ -154,7 +165,7 @@ genVarAlloc var type_ = do
 genExpr :: ArgMap -> Expr -> ResultExpr
 genExpr args (EVar var) = do
   (reg, t) <- getVar var
-  nreg <- getNextRegisterName
+  nreg <- getNewRegisterName
   case t of
     NoTypeDef -> case M.lookup var args of
       Nothing -> return ([], [], NoTypeDef)
@@ -175,14 +186,14 @@ genExpr args (Neg expr) = do
   case expr of
     ELitInt _ -> return ("", '-':res, t)
     _ -> do
-      reg <- getNextRegisterName
+      reg <- getNewRegisterName
       return (code ++ reg ++ " = mul i32 " ++ res ++ ", -1\n", reg, t)
 genExpr args (Not expr) = case expr of
   ELitTrue  -> return ("", "false", BaseTypeDef TBool)
   ELitFalse -> return ("", "true", BaseTypeDef TBool)
   _         -> do
     (code, res, t) <- genExpr args expr
-    reg <- getNextRegisterName
+    reg <- getNewRegisterName
     return (code ++ reg ++ " = cor i1 " ++ res ++ ", 1\n", reg, t)
 genExpr args (EMul expr1 mulop expr2) = genBinaryOp args expr1 expr2 (MulOp mulop)
 genExpr args (EAdd expr1 addop expr2) = genBinaryOp args expr1 expr2 (AddOp addop)
@@ -197,7 +208,7 @@ genEApp :: ArgMap -> Expr -> [Expr] -> ResultExpr
 genEApp args (EVar ident) exprs = do
   (args', argsCode) <- genArgs exprs
   retType <- getFunType ident
-  reg <- getNextRegisterName
+  reg <- getNewRegisterName
   let Ident fname = ident
       prepArgs = intercalate ", " args'
   let callCode = reg ++ " = call " ++ typeToLLVM retType ++ " @" ++ fname
@@ -220,7 +231,7 @@ genBinaryOp _ _ _ (RelOp _) = todoExpr -- @TODO
 genBinaryOp args expr1 expr2 op = do
   (lhsCode, res1, t1) <- genExpr args expr1
   (rhsCode, res2, _) <- genExpr args expr2
-  reg <- getNextRegisterName
+  reg <- getNewRegisterName
   case t1 of
     BaseTypeDef TStr -> todoExpr -- @TODO
     _ -> do
