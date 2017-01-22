@@ -91,11 +91,11 @@ genFuncDef (FuncDef type_ ident@(Ident f) fargs block) = do
           (typeToLLVM t ++ " %" ++ x) : argsToLLVM' args''
 
     -- @TODO change this code
-    ret c = case (last. init) (":D" ++ c) of
-      ':' -> case type_ of
+    ret c = case (last. lines) ('\n' : c) of
+      ' ':' ':'r':'e':'t':_ -> ""
+      _ -> case type_ of
         BaseTypeDef TVoid -> "  ret void\n"
         _ -> printf "  ret %s 0\n" $ typeToLLVM type_
-      _ -> ""
 
 
 genClassDef :: ClassHead -> [MemberDecl] -> Result
@@ -114,7 +114,12 @@ genMemberDecl x = case x of
 
 
 genStmts :: ArgMap -> [Stmt] -> Result
-genStmts args = foldr (liftM2 (++) . genStmt args) (return [])
+-- genStmts args = foldr (liftM2 (++) . genStmt args) (return [])
+genStmts _ [] = return []
+genStmts args (stmt:stmts)= case stmt of
+  SRet _ -> genStmt args stmt
+  SVRet  -> genStmt args stmt
+  _      -> liftM2 (++) (genStmt args stmt) (genStmts args stmts)
 
 genStmt :: ArgMap -> Stmt -> Result
 genStmt _ SEmpty = return []
