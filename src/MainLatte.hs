@@ -19,11 +19,7 @@ runProgram progTxt = case pProgram (myLexer progTxt) of
     let (_, _, e) = staticCheck prog
     case e of
       []     -> do
-        putStrLn "StaticChecker OK"
-        putStrLn "Generated code:"
-        putStrLn "========================================="
-        putStrLn $ genCode prog
-        putStrLn "========================================="
+        putStr $ genCode prog
         exitSuccess
       errors -> showErrors errors >> exitFailure
   Bad s -> do
