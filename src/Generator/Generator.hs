@@ -23,7 +23,7 @@ todoExpr :: ResultExpr
 todoExpr = return (printf "  %s\n" notImplemented, [], NoTypeDef)
 
 
-genStdLib :: EnvState Code
+genStdLib :: Result
 genStdLib = do
   saveFunType (Ident "printInt") (BaseTypeDef TVoid)
   saveFunType (Ident "printString") (BaseTypeDef TVoid)
@@ -31,7 +31,7 @@ genStdLib = do
   saveFunType (Ident "readString") (BaseTypeDef TStr)
   genStdLibDecl
 
-genStdLibDecl :: EnvState Code
+genStdLibDecl :: Result
 genStdLibDecl = return
   "declare void @printInt(i32)\n\
   \declare void @printString(i8*)\n\
@@ -39,12 +39,20 @@ genStdLibDecl = return
   \declare i8* @readString()\n\n\n"
 
 
+saveStrings :: Result
+saveStrings = do
+  str <- getStringDefs
+  let defs = intercalate [] str
+  return $ defs ++ "\n\n"
+
+
 genProgram :: Program -> Result
 genProgram (Program topdefs) = do
-  std <- genStdLib
+  stdLib <- genStdLib
   saveTopDefs topdefs
   code <- genTopDefs topdefs
-  return $ std ++ code
+  strDefs <- saveStrings
+  return $ stdLib ++ strDefs ++ code
 
 
 saveTopDefs :: [TopDef] -> EnvState ()
@@ -200,7 +208,17 @@ genExpr args (EVar var) = do
 genExpr _ (ELitInt n) = return ("", show n, BaseTypeDef TInt)
 genExpr _ ELitTrue = return ("", "1", BaseTypeDef TBool)
 genExpr _ ELitFalse = return ("", "0", BaseTypeDef TBool)
-genExpr _ x@(EString _) = return ("  " ++ show x ++ "\n", "", BaseTypeDef TStr)
+genExpr _ (EString str) = do
+  strReg <- getNewRegister
+  res <- getNewRegisterName
+  let strName = "@str" ++ show strReg
+      strLen = (toInteger . length) str
+  newString $ llvmStrDef strName (length str + 1) str
+  return (llvmStrBitcast res (strLen + 1) strName, res, BaseTypeDef TStr)
+  where
+    llvmStrDef = printf "%s = internal constant [%d x i8] c\"%s\\00\"\n"
+    llvmStrBitcast = printf "  %s = bitcast [%d x i8]* %s to i8*\n"
+
 genExpr _ (EClassNull _) = todoExpr -- @TODO (objects)
 genExpr args (EApp expr exprs) = genEApp args expr exprs
 genExpr _ (EArrSub _ _) = todoExpr -- @TODO (arrays)
@@ -308,11 +326,11 @@ opToLLVM (BinOp op) = case op of
 
 
 typeToLLVM :: Type -> String
-typeToLLVM (BaseTypeDef TVoid) = "void"
-typeToLLVM (BaseTypeDef TBool) = "i1"
-typeToLLVM (BaseTypeDef TInt)  = "i32"
-typeToLLVM (BaseTypeDef TStr)  = "i8*"
-typeToLLVM _                   = notImplemented
+typeToLLVM (BaseTypeDef TVoid)     = "void"
+typeToLLVM (BaseTypeDef TBool)     = "i1"
+typeToLLVM (BaseTypeDef TInt)      = "i32"
+typeToLLVM (BaseTypeDef TStr)      = "i8*"
+typeToLLVM _ = notImplemented
 
 
 toLLVMLabel :: String -> String
