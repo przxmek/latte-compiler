@@ -222,11 +222,16 @@ genBinaryOp args expr1 expr2 op = do
   (rhsCode, res2, _) <- genExpr args expr2
   reg <- getNextRegisterName
   case t1 of
-    BaseTypeDef TInt ->
-      let opCode = reg ++ " = " ++ opToLLVM (BinOp op) ++ " i32 "
-                   ++ res1 ++ ", " ++ res2 ++ "\n" in
-        return (lhsCode ++ rhsCode ++ opCode, reg, BaseTypeDef TInt)
-    _ -> todoExpr -- @TODO
+    BaseTypeDef TStr -> todoExpr -- @TODO
+    _ -> do
+      let t' = typeToLLVM t1
+          opLLVM = opToLLVM (BinOp op)
+          opCode = reg ++ " = " ++ opLLVM ++ " " ++ t' ++ " " ++ res1 ++ ", "
+                 ++ res2 ++ "\n"
+          resultType = case op of
+            RelOp _ -> BaseTypeDef TBool
+            _ -> t1
+      return (lhsCode ++ rhsCode ++ opCode, reg, resultType)
 
 
 
@@ -238,7 +243,14 @@ opToLLVM (BinOp op) = case op of
   MulOp OpTimes -> "mul"
   MulOp OpDiv   -> "sdiv"
   MulOp OpMod   -> "srem"
-  _             -> notImplemented
+  RelOp relOp   -> "icmp" ++ case relOp of
+    OpLTH -> "slt"
+    OpLE  -> "sle"
+    OpGTH -> "sgt"
+    OpGE  -> "sge"
+    OpEQU -> "eq"
+    OpNE  -> "ne"
+  _ -> notImplemented
 
 
 typeToLLVM :: Type -> String
