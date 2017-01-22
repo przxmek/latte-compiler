@@ -105,17 +105,13 @@ genStmt args (SAss expr1 expr2) = case expr1 of
     let t' = typeToLLVM t
     return $ code
       ++ "store " ++ t' ++ " " ++ res ++ ", " ++ t' ++ "* " ++ reg ++ "\n"
-  _        -> todo -- @TODO
-genStmt _ (SIncr expr) = case expr of
-  EVar var -> do
-    (reg, t) <- getVar var
-    return $ "add " ++ typeToLLVM t ++ "* " ++ reg ++ ", 1\n"
-  _        -> todo -- @TODO
-genStmt _ (SDecr expr) = case expr of
-  EVar var -> do
-    (reg, t) <- getVar var
-    return $ "sub " ++ typeToLLVM t ++ "* " ++ reg ++ ", 1\n"
-  _        -> todo -- @TODO
+  _ -> todo -- @TODO
+genStmt args (SIncr expr) = case expr of
+  EVar _ -> genStmt args $ SAss expr $ EAdd expr OpPlus $ ELitInt 1
+  _      -> todo -- @TODO (extension)
+genStmt args (SDecr expr) = case expr of
+  EVar _ -> genStmt args $ SAss expr $ EAdd expr OpMinus $ ELitInt 1
+  _      -> todo -- @TODO (extension)
 genStmt args (SRet expr) = do
   (code, reg, t) <- genExpr args expr
   return $ code ++ "ret " ++ typeToLLVM t ++ " " ++ reg ++ "\n"
@@ -256,7 +252,7 @@ genBinaryOp args expr1 expr2 op = do
                  ++ res2 ++ "\n"
           resultType = case op of
             RelOp _ -> BaseTypeDef TBool
-            _ -> t1
+            _       -> t1
       return (lhsCode ++ rhsCode ++ opCode, reg, resultType)
 
 
