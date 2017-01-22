@@ -13,6 +13,8 @@ type ResultExpr = EnvState (Code, String, Type)
 
 type ArgMap = M.Map Ident Type
 
+data AndOr = And | Or
+
 
 todo :: Result
 todo = return "NotImplemented\n"
@@ -203,36 +205,8 @@ genExpr args (Not expr) = case expr of
 genExpr args (EMul expr1 mulop expr2) = genBinaryOp args expr1 expr2 (MulOp mulop)
 genExpr args (EAdd expr1 addop expr2) = genBinaryOp args expr1 expr2 (AddOp addop)
 genExpr args (ERel expr1 relop expr2) = genBinaryOp args expr1 expr2 (RelOp relop)
-genExpr args (EAnd expr1 expr2) = do
-  (c1, r1, _) <- genExpr args expr1
-  (c2, r2, _) <- genExpr args expr2
-  l2 <- getNewLabel
-  lTrue <- getNewLabel
-  lFalse <- getNewLabel
-  lEnd <- getNewLabel
-  reg <- getNewRegisterName
-  let code = c1 ++ toLLVMCondJump r1 l2 lFalse
-        ++ toLLVMLabel l2 ++ c2 ++ toLLVMCondJump r2 lTrue lFalse
-        ++ toLLVMLabel lTrue ++ toLLVMJump lEnd
-        ++ toLLVMLabel lFalse ++ toLLVMJump lEnd
-        ++ toLLVMLabel lEnd ++ reg
-        ++ printf "phi i1 [ 1, %%%s ], [ 0, %%%s ]\n" lTrue lFalse
-  return (code, reg, BaseTypeDef TBool)
-genExpr args (EOr expr1 expr2) = do
-  (c1, r1, _) <- genExpr args expr1
-  (c2, r2, _) <- genExpr args expr2
-  l2 <- getNewLabel
-  lTrue <- getNewLabel
-  lFalse <- getNewLabel
-  lEnd <- getNewLabel
-  reg <- getNewRegisterName
-  let code = c1 ++ toLLVMCondJump r1 lTrue l2
-        ++ toLLVMLabel l2 ++ c2 ++ toLLVMCondJump r2 lTrue lFalse
-        ++ toLLVMLabel lTrue ++ toLLVMJump lEnd
-        ++ toLLVMLabel lFalse ++ toLLVMJump lEnd
-        ++ toLLVMLabel lEnd ++ reg
-        ++ printf "phi i1 [ 1, %%%s ], [ 0, %%%s ]\n" lTrue lFalse
-  return (code, reg, BaseTypeDef TBool)
+genExpr args (EAnd expr1 expr2) = genEAndOr args And expr1 expr2
+genExpr args (EOr  expr1 expr2) = genEAndOr args Or expr1 expr2
 genExpr _ (ENewClass _) = todoExpr -- @TODO (objects)
 genExpr _ (ENewArray _ _) = todoExpr -- @TODO (arrays)
 
@@ -254,6 +228,27 @@ genEApp args (EVar ident) exprs = do
       (a, c) <- genArgs args'
       return ((typeToLLVM t ++ " " ++ res) : a, code ++ c)
 genEApp _ _ _ = todoExpr -- @TODO
+
+
+genEAndOr :: ArgMap -> AndOr -> Expr -> Expr -> ResultExpr
+genEAndOr args andor expr1 expr2 = do
+  (c1, r1, _) <- genExpr args expr1
+  (c2, r2, _) <- genExpr args expr2
+  l2 <- getNewLabel
+  lTrue <- getNewLabel
+  lFalse <- getNewLabel
+  lEnd <- getNewLabel
+  reg <- getNewRegisterName
+  let condJump = case andor of
+        And -> toLLVMCondJump r1 l2 lFalse
+        Or  -> toLLVMCondJump r1 lTrue l2
+      code = c1 ++ condJump
+        ++ toLLVMLabel l2 ++ c2 ++ toLLVMCondJump r2 lTrue lFalse
+        ++ toLLVMLabel lTrue ++ toLLVMJump lEnd
+        ++ toLLVMLabel lFalse ++ toLLVMJump lEnd
+        ++ toLLVMLabel lEnd ++ reg
+        ++ printf "phi i1 [ 1, %%%s ], [ 0, %%%s ]\n" lTrue lFalse
+  return (code, reg, BaseTypeDef TBool)
 
 
 genUnaryOp :: ArgMap -> Expr -> UnaryOp -> ResultExpr
