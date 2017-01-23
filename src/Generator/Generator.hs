@@ -187,8 +187,8 @@ genStmtDecl args type_ (item:items) = do
       allocCode = printf "  %s = alloca %s\n"
   code <- case item of
     NoInit var -> do
-      res <- allocVar var type_
       (defValCode, defVal) <- defaultInit
+      res <- allocVar var type_
       let initCode = printf "  store %s %s, %s* %s\n" t' defVal t' res
       return $ allocCode res t' ++ defValCode ++ initCode
       where
@@ -199,8 +199,8 @@ genStmtDecl args type_ (item:items) = do
             return (printf bitcast reg, reg)
           _ -> return ("", "0")
     Init var expr -> do
-      res <- allocVar var type_
       (exprCode, reg, _) <- genExpr args expr
+      res <- allocVar var type_
       let initCode = printf "  store %s %s, %s* %s\n" t' reg t' res
       return $ exprCode ++ allocCode res t' ++ initCode
   rest <- genStmtDecl args type_ items

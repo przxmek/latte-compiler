@@ -1,6 +1,10 @@
 #!/bin/bash
 
-FILES=`find ./test/good/ -name \*.lat | sort`
+if [ -$# -eq 0 ] ; then
+  FILES=`find ./test/good/ -name \*.lat | sort`
+else
+  FILES=$1
+fi
 
 TMP=/tmp/latc_llvm_334685
 mkdir -p $TMP
