@@ -39,7 +39,8 @@ genStdLibDecl = return
   \declare void @printInt(i32)\n\
   \declare void @printString(i8*)\n\
   \declare i32 @readInt()\n\
-  \declare i8* @readString()\n\n\n"
+  \declare i8* @readString()\n\n\
+  \@default_str = internal constant [1 x i8] c\"\\00\"\n\n\n"
 
 
 saveStrings :: Result
@@ -187,7 +188,16 @@ genStmtDecl args type_ (item:items) = do
   code <- case item of
     NoInit var -> do
       res <- allocVar var type_
-      return $ allocCode res t'
+      (defValCode, defVal) <- defaultInit
+      let initCode = printf "  store %s %s, %s* %s\n" t' defVal t' res
+      return $ allocCode res t' ++ defValCode ++ initCode
+      where
+        defaultInit = case type_ of
+          BaseTypeDef TStr -> do
+            reg <- getNewRegisterName
+            let bitcast = "  %s = bitcast [1 x i8]* @default_str to i8*\n"
+            return (printf bitcast reg, reg)
+          _ -> return ("", "0")
     Init var expr -> do
       res <- allocVar var type_
       (exprCode, reg, _) <- genExpr args expr
