@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [ "$#" -eq 0 ]; then
+  echo "Incorrect arguments"
+  exit 1
+fi
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+RUNTIMEBC="${DIR}/lib/runtime.bc"
+IN=$1
+OUTLL="`echo ${IN} | sed s/.lat/.ll/g`"
+OUTBC="`echo ${IN} | sed s/.lat/.bc/g`"
+TMPBC="$( dirname "${IN}" )/tmp_file.bc"
+
+"${DIR}"/src/latc_llvm "${IN}" > "${OUTLL}" &&\
+  llvm-as -o "${TMPBC}" "${OUTLL}" &&\
+  llvm-link -o "${OUTBC}" "${TMPBC}" "${RUNTIMEBC}" &&\
+  rm "${TMPBC}" &&\
+  echo "Generated: ${OUTLL} ${OUTBC}"
