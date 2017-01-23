@@ -4,7 +4,7 @@
 @lf  = internal constant [4 x i8] c"%lf\00"
 
 %FILE = type opaque
-@__stdinp = external global %FILE*
+@stdin = external global %FILE*
 
 declare i32 @printf(i8*, ...)
 declare i32 @scanf(i8*, ...)
@@ -55,7 +55,7 @@ define i8* @readString() {
 	store i8* null, i8** %buff_ptr
 	%buff_size = alloca i32
 	store i32 1024, i32* %buff_size
-	%stdin = load %FILE*, %FILE** @__stdinp
+	%stdin = load %FILE*, %FILE** @stdin
 	%size = call i32 @getline(i8** %buff_ptr, i32* %buff_size, %FILE* %stdin)
 	%index = sub i32 %size, 1
 	%buff = load i8*, i8** %buff_ptr
