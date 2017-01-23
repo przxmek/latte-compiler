@@ -163,15 +163,16 @@ checkStmtDecl :: Type -> [Item] -> EnvState Type
 checkStmtDecl (BaseTypeDef TVoid) _ = do
   appendError "Void type declaration is forbidden."
   returnVoid
-checkStmtDecl type_ items = do
-  let
-    noInitVars = [i | NoInit i <- items]
-    initVars = [i | Init i _ <- items]
-    exprs = [e | Init _ e <- items]
-  foldr ((>>) . compareExprType) (return ()) exprs
-  foldr ((>>) . newVar type_) (return ()) (noInitVars ++ initVars)
-  returnVoid
+checkStmtDecl type_ items = createVars items
   where
+    createVars [] = returnVoid
+    createVars (item:items') = do
+      case item of
+        NoInit var -> newVar type_ var
+        Init var expr -> do
+          compareExprType expr
+          newVar type_ var
+      createVars items'
     compareExprType expr = do
       exprType <- checkExpr expr
       typesCheck <- checkTypes type_ exprType
