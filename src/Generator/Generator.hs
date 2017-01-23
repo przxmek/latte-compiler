@@ -34,8 +34,8 @@ genStdLib = do
 
 genStdLibDecl :: Result
 genStdLibDecl = return
-  "declare i8* @concat(i8*, i8*)\
-  \declare i32 @strcmp(i8*, i8*)\
+  "declare i8* @concat(i8*, i8*)\n\
+  \declare i32 @strcmp(i8*, i8*)\n\
   \declare void @printInt(i32)\n\
   \declare void @printString(i8*)\n\
   \declare i32 @readInt()\n\

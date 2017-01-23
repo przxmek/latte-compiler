@@ -55,22 +55,28 @@ define i8* @readString() {
 	store i8* null, i8** %buff_ptr
 	%buff_size = alloca i32
 	store i32 1024, i32* %buff_size
-	%stdin = load %FILE*, %FILE** @stdin
-	%size = call i32 @getline(i8** %buff_ptr, i32* %buff_size, %FILE* %stdin)
+	%in = load %FILE*, %FILE** @stdin
+	%size = call i32 @getline(i8** %buff_ptr, i32* %buff_size, %FILE* %in)
+	%cond = icmp sle i32 %size, 1
+	br i1 %cond, label %EMPTY_LINE, label %OK
+EMPTY_LINE:
+	%new_res = call i8* @readString()
+	ret i8* %new_res
+OK:
 	%index = sub i32 %size, 1
 	%buff = load i8*, i8** %buff_ptr
 	%last = getelementptr i8, i8* %buff, i32 %index
-	store i8 9, i8* %last
+	store i8 0, i8* %last
 	ret i8* %buff
 }
 
 define i8* @concat(i8* %a, i8* %b) {
-	%t1 = call i32 @strlen(i8* %a)
-	%t2 = call i32 @strlen(i8* %b)
-	%t3 = add i32 %t1, %t2
-	%t4 = add i32 %t3, 1
-	%t5 = call i8* @malloc(i32 %t4)
-	call i8* @strcpy(i8* %t5, i8* %a)
-	call i8* @strcat(i8* %t5, i8* %b)
-	ret i8* %t5
+	%alen = call i32 @strlen(i8* %a)
+	%blen = call i32 @strlen(i8* %b)
+	%ablen = add i32 %alen, %blen
+	%len = add i32 %ablen, 1
+	%res = call i8* @malloc(i32 %len)
+	call i8* @strcpy(i8* %res, i8* %a)
+	call i8* @strcat(i8* %res, i8* %b)
+	ret i8* %res
 }
