@@ -6,5 +6,5 @@
 *.hi
 *.o
 
-latc_llvm
-latc_llvm.exe
+latc_comp
+src/latc_llvm

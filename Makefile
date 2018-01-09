@@ -1,6 +1,6 @@
 all: deps
 	cd src && make
-	ln -sf src/latc_llvm latc_llvm
+	ln -sf src/latc_llvm latc_comp
 
 deps: runtime
 
@@ -12,4 +12,4 @@ clean:
 
 distclean: clean
 	cd src && make distclean
-	rm -f latc_llvm
+	rm -f latc_comp
