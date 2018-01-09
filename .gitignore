@@ -1,5 +1,7 @@
+.stack-work
+
 *.hi
 *.o
 
 latc_llvm
-
+latc_llvm.exe
