@@ -1,6 +1,45 @@
 # latte-compiler
 > Autor: Przemysław Kuczyński (p.kuczynski@student.uw.edu.pl)
 
+## Kompilacja
+
+```bash
+$ make
+```
+
+## Uruchamianie programu
+
+```bash
+$ ./latc_llvm foo/bar/baz.lat
+```
+
+## Używane narzędzia i biblioteki
+
+- biblioteka *runtime.ll* ze zmianami
+- program *bnfc*
+
+## Zaimplementowane rozszerzenia
+
+Rozszerzenia nie zostały jeszcze w pełni zaimplementowane.
+
+## Struktura katalogów projektu
+
+* docs - zasoby opisujące zadanie (treść, wymagania, itp.)
+* lib - katalog z zewnętrznymi zależnościami
+  - runtime.ll - biblioteka *runtime* dostrarczona na zajęciach
+* src - katalog z plikami źródłowymi kompilatora
+  - bnfc - katalog z plikami wygenerowanymi przez program `bnfc`
+  - Frontend - pliki źródłowe dla frontendu kompilatora
+  - Generator - pliki źródłowe dla generatora tekstu programu kompilatora
+* test - katalog z programami testowymi
+  - bad - testy błędne
+  - good - testy poprawne
+  - instester - program testujący
+
+## Ewentualne odnośniki do bardziej szczegółowej dokumentacji
+- [Treść zadania zaliczeniowego](https://www.mimuw.edu.pl/~ben/Zajecia/Mrj2017/latte.html)
+- [Dokumentacja BNFC](https://bnfc.readthedocs.io/en/latest/)
+
 ## Wymagania techniczne (z treści projektu zaliczeniowego)
 
 1. Projekt powinien być oddany w postaci spakowanego archiwum TAR
@@ -47,29 +86,4 @@
    LLVM wykonywalny przy uzyciu `lli`) w katalogu **foo/bar**.
 3. Ewentualne funkcje biblioteczne (**printInt** etc.) należy umieścić w pliku
    **runtime.bc** w katalogu **lib** (dodatkowo proszę zamieścić jego źródło)
-
-## Generacja kodu asemblera (z treści projektu zaliczeniowego)
-
-1. Po wykonaniu `make` w korzeniu projektu ma się znajdować program wykonywalny
-   **latc_ARCH** gdzie ARCH to x86 lub x86_64
-2. Wykonanie `latc_ARCH foo/bar/baz.lat` dla poprawnego programu wejściowego
-   **baz.lat** ma stworzyć pliki **baz.s** (kod asemblera) oraz
-   wykonywalny **baz** w katalogu **foo/bar**.
-3. Ewentualne funkcje biblioteczne (**printInt** etc.) należy umieścić w pliku
-   **runtime.o** w katalogu **lib** (dodatkowo proszę zamieścić jego źródło)
-
-## Kompilacja
-
-```bash
-$ make
-```
-
-## Uruchamianie programu
-
-## Używane narzędzia i biblioteki
-
-## Zaimplementowane rozszerzenia
-
-## Struktura katalogów projektu
-
-## Ewentualne odnośniki do bardziej szczegółowej dokumentacji
+   
